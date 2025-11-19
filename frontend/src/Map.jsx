@@ -529,7 +529,8 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
     if (showAdminBoundaries && !adminLayerRef.current) {
       // 行政区域データを読み込み
       console.log('行政区域データを読み込みます')
-      fetch('/data/administrative/admin_simple.geojson')
+      const baseUrl = import.meta.env.BASE_URL || '/'
+      fetch(`${baseUrl}data/administrative/admin_simple.geojson`)
         .then(res => res.json())
         .then(data => {
           console.log('行政区域データ読み込み完了')
@@ -582,7 +583,8 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
     if (showRivers && !riverLayerRef.current) {
       // 河川データを読み込み
       console.log('河川データを読み込みます')
-      fetch('/data/administrative/kasen/rivers_simple.geojson')
+      const baseUrl = import.meta.env.BASE_URL || '/'
+      fetch(`${baseUrl}data/administrative/kasen/rivers_simple.geojson`)
         .then(res => res.json())
         .then(data => {
           console.log('河川データ読み込み完了:', data.features?.length, '件')
@@ -624,7 +626,8 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
     if (showForestRegistry && !forestRegistryLayerRef.current) {
       // 森林簿データを読み込み
       console.log('森林簿データを読み込みます')
-      fetch('/data/administrative/kitamirinsyou/forest_registry.geojson')
+      const baseUrl = import.meta.env.BASE_URL || '/'
+      fetch(`${baseUrl}data/administrative/kitamirinsyou/forest_registry.geojson`)
         .then(res => res.json())
         .then(data => {
           console.log('森林簿データ読み込み完了:', data.features?.length, '件')
