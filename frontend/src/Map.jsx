@@ -530,8 +530,14 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       // 行政区域データを読み込み
       console.log('行政区域データを読み込みます')
       const baseUrl = import.meta.env.BASE_URL || '/'
-      fetch(`${baseUrl}data/administrative/admin_simple.geojson`)
-        .then(res => res.json())
+      const adminUrl = `${baseUrl}data/administrative/admin_simple.geojson`
+      console.log('行政区域URL:', adminUrl)
+      fetch(adminUrl)
+        .then(res => {
+          console.log('行政区域レスポンス:', res.status, res.ok)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.json()
+        })
         .then(data => {
           console.log('行政区域データ読み込み完了')
           
@@ -584,8 +590,14 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       // 河川データを読み込み
       console.log('河川データを読み込みます')
       const baseUrl = import.meta.env.BASE_URL || '/'
-      fetch(`${baseUrl}data/administrative/kasen/rivers_simple.geojson`)
-        .then(res => res.json())
+      const riverUrl = `${baseUrl}data/administrative/kasen/rivers_simple.geojson`
+      console.log('河川URL:', riverUrl)
+      fetch(riverUrl)
+        .then(res => {
+          console.log('河川レスポンス:', res.status, res.ok)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.json()
+        })
         .then(data => {
           console.log('河川データ読み込み完了:', data.features?.length, '件')
           console.log('河川データの最初のfeature:', data.features?.[0])
@@ -627,8 +639,14 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       // 森林簿データを読み込み
       console.log('森林簿データを読み込みます')
       const baseUrl = import.meta.env.BASE_URL || '/'
-      fetch(`${baseUrl}data/administrative/kitamirinsyou/forest_registry.geojson`)
-        .then(res => res.json())
+      const forestUrl = `${baseUrl}data/administrative/kitamirinsyou/forest_registry.geojson`
+      console.log('森林簿URL:', forestUrl)
+      fetch(forestUrl)
+        .then(res => {
+          console.log('森林簿レスポンス:', res.status, res.ok)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.json()
+        })
         .then(data => {
           console.log('森林簿データ読み込み完了:', data.features?.length, '件')
           
