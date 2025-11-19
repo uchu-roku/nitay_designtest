@@ -102,10 +102,16 @@ GitHubにプッシュ後、以下を確認：
    - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
 
-4. 環境変数を設定:
-   - `VITE_API_URL`: RenderのバックエンドURL（例: `https://timber-volume-api.onrender.com`）
+4. **重要**: 環境変数を設定:
+   - Variable Name: `VITE_API_URL`
+   - Value: RenderのバックエンドURL（例: `https://timber-volume-api.onrender.com`）
+   - ⚠️ 末尾のスラッシュ（/）は不要です
 
 5. 「Deploy」をクリック
+
+6. デプロイ後、ブラウザのコンソール（F12）でエラーを確認:
+   - CORSエラーが出る場合 → バックエンドのCORS設定を確認
+   - 404エラーが出る場合 → `VITE_API_URL`が正しく設定されているか確認
 
 ## トラブルシューティング
 

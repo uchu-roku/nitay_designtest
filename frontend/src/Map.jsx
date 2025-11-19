@@ -2,6 +2,8 @@ import { useRef, useEffect, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
 function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints, mode, onClearResults }) {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
@@ -406,7 +408,7 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
     setImageLoading(true)
 
     // 画像オーバーレイを追加
-    const imageUrl = `http://localhost:8000/image/${fileId}`
+    const imageUrl = `${API_URL}/image/${fileId}`
     console.log('画像URL:', imageUrl)
     
     const imageLayer = L.imageOverlay(imageUrl, bounds, {
@@ -527,7 +529,7 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
     if (showAdminBoundaries && !adminLayerRef.current) {
       // 行政区域データを読み込み
       console.log('行政区域データを読み込みます')
-      fetch('http://localhost:8000/administrative/boundaries')
+      fetch(`${API_URL}/administrative/boundaries`)
         .then(res => res.json())
         .then(data => {
           console.log('行政区域データ読み込み完了')
@@ -580,7 +582,7 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
     if (showRivers && !riverLayerRef.current) {
       // 河川データを読み込み
       console.log('河川データを読み込みます')
-      fetch('http://localhost:8000/rivers/boundaries')
+      fetch(`${API_URL}/rivers/boundaries`)
         .then(res => res.json())
         .then(data => {
           console.log('河川データ読み込み完了:', data.features?.length, '件')
@@ -622,7 +624,7 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
     if (showForestRegistry && !forestRegistryLayerRef.current) {
       // 森林簿データを読み込み
       console.log('森林簿データを読み込みます')
-      fetch('http://localhost:8000/forest-registry/boundaries')
+      fetch(`${API_URL}/forest-registry/boundaries`)
         .then(res => res.json())
         .then(data => {
           console.log('森林簿データ読み込み完了:', data.features?.length, '件')

@@ -49,3 +49,5 @@ backend/temp/
 # Environment
 .env
 .env.local
+.env.*.local
+frontend/.env.local

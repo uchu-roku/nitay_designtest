@@ -23,19 +23,46 @@
 
 ## セットアップ
 
-### バックエンド
+### ローカル開発
+
+#### バックエンド
 ```bash
 cd backend
 pip install -r requirements.txt
 python main.py
 ```
 
-### フロントエンド
+#### フロントエンド
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
+### デプロイ
+
+**クイックスタート**: `QUICKSTART.md`を参照
+
+**詳細手順**: `SETUP_GITHUB.md`を参照
+
+**トラブルシューティング**: `DEPLOYMENT.md`を参照
+
+#### 重要な設定
+
+1. **フロントエンド環境変数**（Vercel）:
+   ```
+   VITE_API_URL=https://your-backend-url.onrender.com
+   ```
+
+2. **データファイル管理**:
+   - Git LFSを使用（推奨）
+   - または外部ストレージからダウンロード
+
+3. **バックエンドコマンド**（Render）:
+   ```
+   Build: pip install -r backend/requirements.txt
+   Start: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+   ```
 
 ## 技術スタック
 - Backend: FastAPI (Python)
