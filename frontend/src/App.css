@@ -1,0 +1,166 @@
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  width: 350px;
+  background: white;
+  padding: 20px;
+  overflow-y: auto;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+.sidebar h1 {
+  font-size: 24px;
+  margin-bottom: 20px;
+  color: #2c5f2d;
+}
+
+.section {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.section h2 {
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.section h3 {
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.instruction {
+  font-size: 14px;
+  color: #666;
+}
+
+input[type="file"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+/* ファイル選択ボタンのカスタムスタイル */
+label[for="file-upload"] {
+  user-select: none;
+}
+
+label[for="file-upload"]:active {
+  transform: scale(0.98);
+}
+
+.status {
+  margin-top: 10px;
+  color: #666;
+  font-style: italic;
+}
+
+.success {
+  margin-top: 10px;
+  color: #2c5f2d;
+  font-weight: bold;
+}
+
+.result {
+  background: #f0f8f0;
+  padding: 15px;
+  border-radius: 8px;
+  border: 2px solid #2c5f2d;
+}
+
+.result-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.result-item .label {
+  font-weight: bold;
+  color: #555;
+}
+
+.result-item .value {
+  color: #2c5f2d;
+  font-weight: bold;
+}
+
+.warnings {
+  margin-top: 15px;
+  padding: 10px;
+  background: #fff3cd;
+  border-radius: 4px;
+}
+
+.warnings ul {
+  margin-left: 20px;
+  margin-top: 5px;
+}
+
+.warnings li {
+  font-size: 13px;
+  color: #856404;
+  margin-bottom: 5px;
+}
+
+.error {
+  background: #f8d7da;
+  padding: 15px;
+  border-radius: 8px;
+  border: 2px solid #dc3545;
+}
+
+.error h3 {
+  color: #721c24;
+  margin-bottom: 8px;
+}
+
+.error p {
+  color: #721c24;
+  font-size: 14px;
+}
+
+.map-container {
+  flex: 1;
+  position: relative;
+}
+
+.uploaded-image-overlay {
+  z-index: 400 !important;
+  pointer-events: none;
+}
+
+/* 矩形を画像の上に表示 */
+.leaflet-overlay-pane svg {
+  z-index: 500 !important;
+}
+
+.leaflet-overlay-pane path {
+  pointer-events: auto !important;
+}
+
+/* 行政区域レイヤーのクリックイベントを無効化 */
+.leaflet-overlay-pane svg path[fill="#ff6b6b"] {
+  pointer-events: none !important;
+}
+
+.leaflet-overlay-pane svg path[stroke="#ff6b6b"] {
+  pointer-events: none !important;
+}
+
+/* 河川レイヤーのクリックイベントを無効化 */
+.leaflet-overlay-pane svg path[fill="#2196F3"] {
+  pointer-events: none !important;
+}
+
+.leaflet-overlay-pane svg path[stroke="#2196F3"] {
+  pointer-events: none !important;
+}
