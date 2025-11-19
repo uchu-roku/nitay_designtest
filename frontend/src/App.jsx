@@ -5,6 +5,67 @@ import './App.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
+// MVP版: フロントエンドのみで簡易解析を実行
+function generateMockAnalysis(requestData) {
+  const { bbox, polygon_coords, forest_registry_id } = requestData
+  
+  // 面積を計算（簡易版）
+  const latDiff = bbox.max_lat - bbox.min_lat
+  const lonDiff = bbox.max_lon - bbox.min_lon
+  const avgLat = (bbox.min_lat + bbox.max_lat) / 2
+  const areaKm2 = latDiff * 111 * lonDiff * 111 * Math.cos(avgLat * Math.PI / 180)
+  
+  // 樹木密度（1km²あたり800-1500本）
+  const treesPerKm2 = Math.floor(Math.random() * 700) + 800
+  const treeCount = Math.floor(areaKm2 * treesPerKm2)
+  
+  // 材積（1本あたり0.3-0.8m³）
+  const volumePerTree = Math.random() * 0.5 + 0.3
+  const totalVolume = treeCount * volumePerTree
+  
+  // 樹木位置を生成（最大100本まで表示）
+  const displayCount = Math.min(treeCount, 100)
+  const treePoints = []
+  
+  for (let i = 0; i < displayCount; i++) {
+    const lat = bbox.min_lat + Math.random() * latDiff
+    const lon = bbox.min_lon + Math.random() * lonDiff
+    const treeType = Math.random() < 0.6 ? 'coniferous' : 'broadleaf'
+    const dbh = Math.random() * 30 + 15
+    const volume = Math.random() * 1.0 + 0.2
+    
+    treePoints.push({
+      lat,
+      lon,
+      tree_type: treeType,
+      dbh: Math.round(dbh * 10) / 10,
+      volume: Math.round(volume * 1000) / 1000
+    })
+  }
+  
+  const warnings = [
+    `解析面積: ${areaKm2.toFixed(4)} km²`,
+  ]
+  
+  if (forest_registry_id) {
+    warnings.push(`森林簿ID: ${forest_registry_id}`)
+  }
+  
+  if (treeCount > 100) {
+    warnings.push(`※ 検出本数: ${treeCount}本（地図上には100本まで表示）`)
+  }
+  
+  warnings.push('※MVP版: フロントエンドのみの簡易シミュレーションです')
+  
+  return {
+    tree_count: treeCount,
+    volume_m3: Math.round(totalVolume * 100) / 100,
+    confidence: areaKm2 < 0.01 || areaKm2 > 10 ? 'low' : 'medium',
+    warnings,
+    tree_points: treePoints
+  }
+}
+
 function App() {
   const [mode, setMode] = useState('map') // 'map', 'upload', or 'forest_registry'
   const [fileId, setFileId] = useState(null)
@@ -34,38 +95,10 @@ function App() {
     setFileMetadata(null)
     setImageQualityWarnings([])
 
-    const formData = new FormData()
-    formData.append('file', file)
-
-    try {
-      const response = await axios.post(`${API_URL}/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      
-      console.log('アップロードレスポンス:', response.data)
-      
-      setFileId(response.data.file_id)
-      setFileMetadata(response.data.info)
-      
-      // 画像品質の警告を設定
-      if (response.data.info && response.data.info.warnings) {
-        setImageQualityWarnings(response.data.info.warnings)
-      }
-      
-      // GeoTIFF情報がある場合は地図を移動
-      if (response.data.info && response.data.info.bbox) {
-        console.log('画像の境界:', response.data.info.bbox)
-        setImageBounds(response.data.info.bbox)
-      } else {
-        console.warn('GeoTIFF情報が見つかりません:', response.data.info)
-        setError('警告: 画像に座標情報がありません。地図上に表示できません。')
-      }
-    } catch (err) {
-      console.error('アップロードエラー:', err)
-      setError(err.response?.data?.detail || 'アップロードに失敗しました')
-    } finally {
-      setUploading(false)
-    }
+    // MVP版: 画像アップロード機能は未実装
+    setError('MVP版では画像アップロード機能は未実装です。地図モードをご利用ください。')
+    setUploading(false)
+    setMode('map')
   }
 
   const handleAnalyze = useCallback(async (bounds, polygonCoords = null, registryId = null) => {
@@ -106,9 +139,10 @@ function App() {
       }
 
       console.log('解析リクエスト:', requestData)
-      const response = await axios.post(`${API_URL}/analyze`, requestData)
-
-      setResult(response.data)
+      
+      // MVP版: フロントエンドのみで簡易解析
+      const mockResult = generateMockAnalysis(requestData)
+      setResult(mockResult)
     } catch (err) {
       setError(err.response?.data?.detail || '解析に失敗しました')
     } finally {
