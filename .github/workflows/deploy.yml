@@ -1,10 +1,9 @@
-# Vite + React フロントエンドを GitHub Pages にデプロイする
 name: Deploy frontend to GitHub Pages
 
 on:
   push:
     branches:
-      - main   # main ブランチに push されたら実行
+      - main   # main に push されたらデプロイ
 
 permissions:
   contents: read
@@ -17,10 +16,10 @@ concurrency:
 
 jobs:
   deploy:
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -30,11 +29,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: npm install
 
       - name: Build
         working-directory: ./frontend
