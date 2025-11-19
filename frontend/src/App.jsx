@@ -173,6 +173,12 @@ function App() {
     }
   }
 
+  const handleFileUploadClick = (event) => {
+    // MVP版：ファイル選択を促す代わりにサンプル画像使用を促す
+    event.preventDefault()
+    alert('🎯 MVP版のため、ファイルアップロード機能は無効です。\n\n上の「サンプル画像を使用（MVP）」セクションから画像を選択してください。')
+  }
+
   const handleFileUpload = async (event) => {
     const file = event.target.files[0]
     if (!file) return
@@ -489,41 +495,39 @@ function App() {
               
               <label
                 htmlFor="file-upload"
+                onClick={handleFileUploadClick}
                 style={{
                   display: 'block',
                   width: '100%',
                   padding: '15px',
-                  border: '2px dashed #2c5f2d',
+                  border: '2px dashed #ccc',
                   borderRadius: '4px',
                   fontSize: '14px',
-                  cursor: uploading ? 'not-allowed' : 'pointer',
-                  background: uploading ? '#f5f5f5' : 'white',
+                  cursor: 'pointer',
+                  background: '#f5f5f5',
                   textAlign: 'center',
-                  color: '#2c5f2d',
+                  color: '#999',
                   fontWeight: 'bold',
-                  transition: 'all 0.3s'
+                  transition: 'all 0.3s',
+                  opacity: 0.6
                 }}
                 onMouseEnter={(e) => {
-                  if (!uploading) {
-                    e.target.style.background = '#f0f8f0'
-                    e.target.style.borderColor = '#1e4620'
-                  }
+                  e.target.style.background = '#e8e8e8'
+                  e.target.style.borderColor = '#999'
                 }}
                 onMouseLeave={(e) => {
-                  if (!uploading) {
-                    e.target.style.background = 'white'
-                    e.target.style.borderColor = '#2c5f2d'
-                  }
+                  e.target.style.background = '#f5f5f5'
+                  e.target.style.borderColor = '#ccc'
                 }}
               >
-                {uploading ? '📤 アップロード中...' : '📁 GeoTIFFファイルを選択'}
+                📁 GeoTIFFファイルを選択（MVP版では無効）
               </label>
               <input
                 id="file-upload"
                 type="file"
                 accept=".tif,.tiff,.jpg,.jpeg,.png"
                 onChange={handleFileUpload}
-                disabled={uploading}
+                disabled={true}
                 style={{ display: 'none' }}
               />
               {fileId && (
