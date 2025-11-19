@@ -68,20 +68,24 @@ async def get_administrative_boundaries():
     """行政区域データを取得"""
     from fastapi.responses import FileResponse
     import os
+    from pathlib import Path
+    
+    # ベースディレクトリを取得（main.pyの場所を基準）
+    base_dir = Path(__file__).parent
     
     # 簡略化版のGeoJSONを返す
-    geojson_path = "data/administrative/admin_simple.geojson"
+    geojson_path = base_dir / "data" / "administrative" / "admin_simple.geojson"
     
-    if not os.path.exists(geojson_path):
+    if not geojson_path.exists():
         # フォールバック: 元のファイル
-        geojson_path = "data/administrative/N03-20250101_01.geojson"
+        geojson_path = base_dir / "data" / "administrative" / "N03-20250101_01.geojson"
     
-    if not os.path.exists(geojson_path):
+    if not geojson_path.exists():
         raise HTTPException(status_code=404, detail="行政区域データが見つかりません")
     
     print(f"行政区域データを配信: {geojson_path}")
     return FileResponse(
-        geojson_path,
+        str(geojson_path),
         media_type="application/json",
         headers={
             "Access-Control-Allow-Origin": "*",
@@ -95,22 +99,26 @@ async def get_river_boundaries():
     """河川データを取得"""
     from fastapi.responses import FileResponse
     import os
+    from pathlib import Path
+    
+    # ベースディレクトリを取得
+    base_dir = Path(__file__).parent
     
     # 河川データのパス（kasenフォルダ内）
-    geojson_path = "data/administrative/kasen/rivers_simple.geojson"
+    geojson_path = base_dir / "data" / "administrative" / "kasen" / "rivers_simple.geojson"
     
-    if not os.path.exists(geojson_path):
+    if not geojson_path.exists():
         print(f"河川データが見つかりません: {geojson_path}")
         # フォールバック: 完全版を試す
-        geojson_path = "data/administrative/kasen/W05-09_01_6441-jgd_GML.geojson"
+        geojson_path = base_dir / "data" / "administrative" / "kasen" / "W05-09_01_6441-jgd_GML.geojson"
     
-    if not os.path.exists(geojson_path):
+    if not geojson_path.exists():
         print(f"河川データが見つかりません: {geojson_path}")
         raise HTTPException(status_code=404, detail="河川データが見つかりません")
     
     print(f"河川データを配信: {geojson_path}")
     return FileResponse(
-        geojson_path,
+        str(geojson_path),
         media_type="application/json",
         headers={
             "Access-Control-Allow-Origin": "*",
@@ -123,16 +131,20 @@ async def get_river_boundaries():
 async def get_forest_registry():
     """森林簿データを取得（林班・小班）"""
     from fastapi.responses import FileResponse
+    from pathlib import Path
+    
+    # ベースディレクトリを取得
+    base_dir = Path(__file__).parent
     
     # GeoJSONファイルを優先的に使用（高速化のため）
-    geojson_path = "data/administrative/kitamirinsyou/forest_registry.geojson"
-    gpkg_path = "data/administrative/kitamirinsyou/kitamirinsyou.gpkg"
+    geojson_path = base_dir / "data" / "administrative" / "kitamirinsyou" / "forest_registry.geojson"
+    gpkg_path = base_dir / "data" / "administrative" / "kitamirinsyou" / "kitamirinsyou.gpkg"
     
     # GeoJSONファイルが存在する場合はそれを返す
-    if os.path.exists(geojson_path):
+    if geojson_path.exists():
         print(f"森林簿データを配信（GeoJSON）: {geojson_path}")
         return FileResponse(
-            geojson_path,
+            str(geojson_path),
             media_type="application/json",
             headers={
                 "Access-Control-Allow-Origin": "*",
@@ -141,7 +153,7 @@ async def get_forest_registry():
         )
     
     # GeoJSONがない場合はGPKGから変換
-    if not os.path.exists(gpkg_path):
+    if not gpkg_path.exists():
         raise HTTPException(status_code=404, detail="森林簿データが見つかりません")
     
     try:
