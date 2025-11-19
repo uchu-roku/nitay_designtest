@@ -132,10 +132,38 @@ function App() {
     setFileMetadata(null)
     setImageQualityWarnings([])
 
-    // MVP版: 画像アップロード機能は未実装
-    setError('MVP版では画像アップロード機能は未実装です。地図モードをご利用ください。')
-    setUploading(false)
-    setMode('map')
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await axios.post(`${API_URL}/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      
+      console.log('アップロードレスポンス:', response.data)
+      
+      setFileId(response.data.file_id)
+      setFileMetadata(response.data.info)
+      
+      // 画像品質の警告を設定
+      if (response.data.info && response.data.info.warnings) {
+        setImageQualityWarnings(response.data.info.warnings)
+      }
+      
+      // GeoTIFF情報がある場合は地図を移動
+      if (response.data.info && response.data.info.bbox) {
+        console.log('画像の境界:', response.data.info.bbox)
+        setImageBounds(response.data.info.bbox)
+      } else {
+        console.warn('GeoTIFF情報が見つかりません:', response.data.info)
+        setError('警告: 画像に座標情報がありません。地図上に表示できません。')
+      }
+    } catch (err) {
+      console.error('アップロードエラー:', err)
+      setError(err.response?.data?.detail || 'アップロードに失敗しました。バックエンドAPIが必要です。')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleAnalyze = useCallback(async (bounds, polygonCoords = null, registryId = null) => {
