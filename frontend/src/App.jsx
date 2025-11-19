@@ -5,6 +5,24 @@ import './App.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
+// ポリゴン内判定（Ray casting algorithm）
+function isPointInPolygon(point, polygon) {
+  const [x, y] = point
+  let inside = false
+  
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0], yi = polygon[i][1]
+    const xj = polygon[j][0], yj = polygon[j][1]
+    
+    const intersect = ((yi > y) !== (yj > y))
+      && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)
+    
+    if (intersect) inside = !inside
+  }
+  
+  return inside
+}
+
 // MVP版: フロントエンドのみで簡易解析を実行
 function generateMockAnalysis(requestData) {
   const { bbox, polygon_coords, forest_registry_id } = requestData
@@ -23,13 +41,32 @@ function generateMockAnalysis(requestData) {
   const volumePerTree = Math.random() * 0.5 + 0.3
   const totalVolume = treeCount * volumePerTree
   
+  // ポリゴン座標を変換（ある場合）
+  let polygon = null
+  if (polygon_coords && polygon_coords.length > 0) {
+    polygon = polygon_coords.map(coord => [coord.lon || coord.lng, coord.lat])
+    console.log('ポリゴン判定を使用:', polygon.length, '頂点')
+  }
+  
   // 樹木位置を生成（最大100本まで表示）
   const displayCount = Math.min(treeCount, 100)
   const treePoints = []
   
-  for (let i = 0; i < displayCount; i++) {
+  // ポリゴンがある場合は、ポリゴン内の点のみ生成
+  let attempts = 0
+  const maxAttempts = displayCount * 20 // 最大試行回数
+  
+  while (treePoints.length < displayCount && attempts < maxAttempts) {
+    attempts++
+    
     const lat = bbox.min_lat + Math.random() * latDiff
     const lon = bbox.min_lon + Math.random() * lonDiff
+    
+    // ポリゴンが指定されている場合は範囲内チェック
+    if (polygon && !isPointInPolygon([lon, lat], polygon)) {
+      continue
+    }
+    
     const treeType = Math.random() < 0.6 ? 'coniferous' : 'broadleaf'
     const dbh = Math.random() * 30 + 15
     const volume = Math.random() * 1.0 + 0.2
