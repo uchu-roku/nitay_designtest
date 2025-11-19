@@ -261,6 +261,66 @@ async def get_image(file_id: str):
         raise HTTPException(status_code=500, detail=f"画像変換エラー: {str(e)}")
 
 
+@app.get("/preset-images")
+async def get_preset_images():
+    """プリセット画像のリストを取得（MVP用）"""
+    from pathlib import Path
+    
+    base_dir = Path(__file__).parent
+    gazou_dir = base_dir / "data" / "administrative" / "gazou"
+    
+    if not gazou_dir.exists():
+        return {"images": []}
+    
+    images = []
+    for file_path in gazou_dir.glob("*.tif"):
+        images.append({
+            "id": file_path.stem,
+            "filename": file_path.name,
+            "path": str(file_path.relative_to(base_dir))
+        })
+    
+    return {"images": images}
+
+
+@app.post("/upload-preset/{image_id}")
+async def upload_preset_image(image_id: str):
+    """プリセット画像を読み込む（MVP用）"""
+    from pathlib import Path
+    
+    base_dir = Path(__file__).parent
+    gazou_dir = base_dir / "data" / "administrative" / "gazou"
+    
+    # 画像ファイルを検索
+    image_path = None
+    for file_path in gazou_dir.glob(f"{image_id}.*"):
+        if file_path.suffix.lower() in ['.tif', '.tiff']:
+            image_path = file_path
+            break
+    
+    if not image_path or not image_path.exists():
+        raise HTTPException(status_code=404, detail="プリセット画像が見つかりません")
+    
+    try:
+        # 画像の検証
+        validation = image_service.validate_geotiff(str(image_path))
+        
+        if not validation['valid']:
+            raise HTTPException(status_code=400, detail=validation['message'])
+        
+        # ファイルIDを生成して登録（コピーせずに元のパスを使用）
+        file_id = image_service.register_preset_file(str(image_path), validation['info'])
+        
+        return {
+            "file_id": file_id,
+            "filename": image_path.name,
+            "info": validation['info']
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"プリセット画像読み込みエラー: {str(e)}")
+
+
 @app.post("/upload")
 async def upload_geotiff(file: UploadFile = File(...)):
     """GeoTIFFファイルをアップロード"""

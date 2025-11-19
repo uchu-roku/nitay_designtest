@@ -93,6 +93,17 @@ class ImageService:
                 'message': f'ファイル読み込みエラー: {str(e)}'
             }
     
+    def register_preset_file(self, file_path: str, metadata: dict = None) -> str:
+        """プリセット画像を登録してIDを返す（コピーせずに元のパスを使用）"""
+        file_id = str(uuid.uuid4())
+        self.files[file_id] = file_path
+        
+        # メタデータを保存
+        if metadata:
+            self.file_metadata[file_id] = metadata
+        
+        return file_id
+    
     def save_uploaded_file(self, tmp_path: str, metadata: dict = None) -> str:
         """アップロードファイルを保存してIDを返す"""
         file_id = str(uuid.uuid4())

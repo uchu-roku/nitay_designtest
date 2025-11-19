@@ -115,6 +115,8 @@ function App() {
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
   const [forestRegistryId, setForestRegistryId] = useState(null)
+  const [presetImages, setPresetImages] = useState([])
+  const [loadingPresets, setLoadingPresets] = useState(false)
 
   const handleClearResults = useCallback(() => {
     console.log('解析結果をクリアします')
@@ -122,6 +124,54 @@ function App() {
     setError(null)
     setForestRegistryId(null)
   }, [])
+
+  // プリセット画像リストを取得
+  useEffect(() => {
+    const fetchPresetImages = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/preset-images`)
+        setPresetImages(response.data.images || [])
+      } catch (err) {
+        console.error('プリセット画像の取得エラー:', err)
+      }
+    }
+    fetchPresetImages()
+  }, [])
+
+  const handlePresetImageSelect = async (imageId) => {
+    setLoadingPresets(true)
+    setError(null)
+    setFileMetadata(null)
+    setImageQualityWarnings([])
+
+    try {
+      const response = await axios.post(`${API_URL}/upload-preset/${imageId}`)
+      
+      console.log('プリセット画像読み込みレスポンス:', response.data)
+      
+      setFileId(response.data.file_id)
+      setFileMetadata(response.data.info)
+      
+      // 画像品質の警告を設定
+      if (response.data.info && response.data.info.warnings) {
+        setImageQualityWarnings(response.data.info.warnings)
+      }
+      
+      // GeoTIFF情報がある場合は地図を移動
+      if (response.data.info && response.data.info.bbox) {
+        console.log('画像の境界:', response.data.info.bbox)
+        setImageBounds(response.data.info.bbox)
+      } else {
+        console.warn('GeoTIFF情報が見つかりません:', response.data.info)
+        setError('警告: 画像に座標情報がありません。地図上に表示できません。')
+      }
+    } catch (err) {
+      console.error('プリセット画像読み込みエラー:', err)
+      setError(err.response?.data?.detail || 'プリセット画像の読み込みに失敗しました')
+    } finally {
+      setLoadingPresets(false)
+    }
+  }
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0]
@@ -397,6 +447,45 @@ function App() {
                   ※ JPG/PNG形式も可能ですが、座標情報がないため地図上に表示できません。
                 </p>
               </div>
+
+              {/* プリセット画像選択（MVP用） */}
+              {presetImages.length > 0 && (
+                <div style={{
+                  background: '#f0f8ff',
+                  padding: '12px',
+                  borderRadius: '4px',
+                  marginBottom: '12px',
+                  border: '1px solid #4CAF50'
+                }}>
+                  <strong style={{ color: '#2c5f2d', fontSize: '13px' }}>🎯 サンプル画像を使用（MVP）</strong>
+                  <div style={{ marginTop: '8px' }}>
+                    {presetImages.map((img) => (
+                      <button
+                        key={img.id}
+                        onClick={() => handlePresetImageSelect(img.id)}
+                        disabled={loadingPresets}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          marginBottom: '6px',
+                          background: loadingPresets ? '#f5f5f5' : '#4CAF50',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: loadingPresets ? 'not-allowed' : 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {loadingPresets ? '読み込み中...' : `📷 ${img.filename}`}
+                      </button>
+                    ))}
+                  </div>
+                  <p style={{ marginTop: '8px', marginBottom: 0, fontSize: '11px', color: '#666' }}>
+                    ※ MVP版: 事前に配置された画像を使用します
+                  </p>
+                </div>
+              )}
               
               <label
                 htmlFor="file-upload"
