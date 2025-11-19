@@ -117,6 +117,7 @@ function App() {
   const [forestRegistryId, setForestRegistryId] = useState(null)
   const [presetImages, setPresetImages] = useState([])
   const [loadingPresets, setLoadingPresets] = useState(false)
+  const [imageLoaded, setImageLoaded] = useState(false)
 
   const handleClearResults = useCallback(() => {
     console.log('解析結果をクリアします')
@@ -140,6 +141,7 @@ function App() {
 
   const handlePresetImageSelect = async (imageId) => {
     setLoadingPresets(true)
+    setImageLoaded(false)
     setError(null)
     setFileMetadata(null)
     setImageQualityWarnings([])
@@ -157,21 +159,28 @@ function App() {
         setImageQualityWarnings(response.data.info.warnings)
       }
       
-      // GeoTIFF情報がある場合は地図を移動
+      // GeoTIFF情報がある場合は地図を移動（画像読み込みは別途通知を待つ）
       if (response.data.info && response.data.info.bbox) {
         console.log('画像の境界:', response.data.info.bbox)
         setImageBounds(response.data.info.bbox)
       } else {
         console.warn('GeoTIFF情報が見つかりません:', response.data.info)
         setError('警告: 画像に座標情報がありません。地図上に表示できません。')
+        setImageLoaded(true) // エラーの場合は読み込み完了扱い
       }
     } catch (err) {
       console.error('プリセット画像読み込みエラー:', err)
       setError(err.response?.data?.detail || 'プリセット画像の読み込みに失敗しました')
+      setImageLoaded(true) // エラーの場合は読み込み完了扱い
     } finally {
       setLoadingPresets(false)
     }
   }
+
+  const handleImageLoaded = useCallback(() => {
+    console.log('画像が地図上に読み込まれました')
+    setImageLoaded(true)
+  }, [])
 
   const handleFileUploadClick = (event) => {
     // MVP版：ファイル選択を促す代わりにサンプル画像使用を促す
@@ -532,10 +541,14 @@ function App() {
               />
               {fileId && (
                 <>
-                  <p className="success">✓ アップロード完了</p>
+                  {!imageLoaded ? (
+                    <p className="status">📤 画像を読み込み中...</p>
+                  ) : (
+                    <p className="success">✓ アップロード完了</p>
+                  )}
                   
                   {/* 画像品質の警告 */}
-                  {imageQualityWarnings.length > 0 && (
+                  {imageQualityWarnings.length > 0 && imageLoaded && (
                     <div style={{
                       background: '#fff3cd',
                       padding: '10px',
@@ -555,7 +568,7 @@ function App() {
                     </div>
                   )}
                   
-                  {imageBounds ? (
+                  {imageBounds && imageLoaded && (
                     <>
                       <p className="success" style={{ fontSize: '13px', marginTop: '5px' }}>
                         画像が地図上に表示されました
@@ -576,10 +589,6 @@ function App() {
                         📍 画像位置にズーム
                       </button>
                     </>
-                  ) : (
-                    <p className="status" style={{ fontSize: '13px', marginTop: '5px' }}>
-                      座標情報を確認中...
-                    </p>
                   )}
                 </>
               )}
@@ -682,6 +691,7 @@ function App() {
           treePoints={result?.tree_points || []}
           mode={mode}
           onClearResults={handleClearResults}
+          onImageLoaded={handleImageLoaded}
         />
       </div>
     </div>

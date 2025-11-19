@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints, mode, onClearResults }) {
+function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints, mode, onClearResults, onImageLoaded }) {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
   const imageLayerRef = useRef(null)
@@ -422,6 +422,10 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       console.log('✅ 画像の読み込みが完了しました')
       console.log('画像レイヤーの境界:', imageLayer.getBounds())
       setImageLoading(false)
+      // 親コンポーネントに通知
+      if (onImageLoaded) {
+        onImageLoaded()
+      }
     })
     
     imageLayer.on('error', (e) => {
