@@ -683,7 +683,7 @@ function App() {
             }}>
               <strong style={{ color: '#0d47a1' }}>🤖 チャットボット解析について</strong>
               <p style={{ marginTop: '8px', marginBottom: 0, color: '#0d47a1', lineHeight: '1.6' }}>
-                AIとやり取りしながら解析を実行できます。本格運用時はChatGPT APIを使用しますが、MVP版ではテスト用の文言で動作確認できます。
+                AIとやり取りしながら解析を実行できます。MVP版ではテスト用の文言で動作確認できます。
               </p>
             </div>
             
