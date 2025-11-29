@@ -278,6 +278,27 @@ function App() {
         const volumePerTree = Math.random() * 0.5 + 0.3
         const totalVolume = treeCount * volumePerTree
         
+        // 樹木位置を生成（地図表示用に100本）
+        const treePoints = []
+        const latDiff = sapporoBounds.max_lat - sapporoBounds.min_lat
+        const lonDiff = sapporoBounds.max_lon - sapporoBounds.min_lon
+        
+        for (let i = 0; i < 100; i++) {
+          const lat = sapporoBounds.min_lat + Math.random() * latDiff
+          const lon = sapporoBounds.min_lon + Math.random() * lonDiff
+          const treeType = Math.random() < 0.6 ? 'coniferous' : 'broadleaf'
+          const dbh = Math.random() * 30 + 15
+          const volume = Math.random() * 1.0 + 0.2
+          
+          treePoints.push({
+            lat,
+            lon,
+            tree_type: treeType,
+            dbh: Math.round(dbh * 10) / 10,
+            volume: Math.round(volume * 1000) / 1000
+          })
+        }
+        
         const mockResult = {
           tree_count: treeCount,
           volume_m3: Math.round(totalVolume * 100) / 100,
@@ -285,16 +306,18 @@ function App() {
           warnings: [
             '解析面積: 1,121 km²（札幌市全体）',
             '対象地域: 札幌市',
+            `※ 検出本数: ${treeCount.toLocaleString()}本（地図上には100本まで表示）`,
             '※MVP版: チャットボット解析のシミュレーションです',
             '※本格運用時はChatGPT APIを使用します'
           ],
-          tree_points: [] // 広域のため個別の樹木位置は表示しない
+          tree_points: treePoints,
+          sapporo_bounds: sapporoBounds // 札幌市の範囲を追加
         }
         
         setResult(mockResult)
         setChatMessages(prev => [...prev, {
           role: 'assistant',
-          content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。`
+          content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。地図上に樹木位置と札幌市の範囲を表示しました。`
         }])
         setAnalyzing(false)
       }, 1500)
@@ -940,6 +963,7 @@ function App() {
           fileId={fileId}
           zoomToImage={zoomToImage}
           treePoints={result?.tree_points || []}
+          sapporoBounds={result?.sapporo_bounds || null}
           mode={mode}
           onClearResults={handleClearResults}
           onImageLoaded={handleImageLoaded}

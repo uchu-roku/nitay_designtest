@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints, mode, onClearResults, onImageLoaded }) {
+function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints, sapporoBounds, mode, onClearResults, onImageLoaded }) {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
   const imageLayerRef = useRef(null)
@@ -28,6 +28,7 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
   const adminLayerRef = useRef(null)
   const riverLayerRef = useRef(null)
   const forestRegistryLayerRef = useRef(null)
+  const sapporoBoundsLayerRef = useRef(null)
   const onAnalyzeRef = useRef(onAnalyze)
   const disabledRef = useRef(disabled)
   
@@ -523,6 +524,60 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       })
     }
   }, [treePoints])
+
+  // 札幌市の範囲を表示（チャットボットモード用）
+  useEffect(() => {
+    if (!mapInstanceRef.current) return
+
+    const map = mapInstanceRef.current
+
+    // 既存の札幌市範囲レイヤーを削除
+    if (sapporoBoundsLayerRef.current) {
+      map.removeLayer(sapporoBoundsLayerRef.current)
+      sapporoBoundsLayerRef.current = null
+    }
+
+    // 札幌市の範囲を表示
+    if (sapporoBounds) {
+      console.log('札幌市の範囲を表示:', sapporoBounds)
+
+      const bounds = [
+        [sapporoBounds.min_lat, sapporoBounds.min_lon],
+        [sapporoBounds.max_lat, sapporoBounds.max_lon]
+      ]
+
+      // 矩形レイヤーを作成
+      const boundsLayer = L.rectangle(bounds, {
+        color: '#FF6B6B',
+        weight: 3,
+        opacity: 0.8,
+        fillColor: '#FF6B6B',
+        fillOpacity: 0.15,
+        pane: 'overlayPane'
+      }).addTo(map)
+
+      // ポップアップを追加
+      boundsLayer.bindPopup(`
+        <div style="font-size: 13px;">
+          <strong>🗺️ 札幌市全体</strong><br/>
+          解析範囲: 約1,121 km²<br/>
+          緯度: ${sapporoBounds.min_lat.toFixed(2)}° - ${sapporoBounds.max_lat.toFixed(2)}°<br/>
+          経度: ${sapporoBounds.min_lon.toFixed(2)}° - ${sapporoBounds.max_lon.toFixed(2)}°
+        </div>
+      `)
+
+      sapporoBoundsLayerRef.current = boundsLayer
+
+      // 地図を札幌市の範囲に移動
+      setTimeout(() => {
+        map.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 11
+        })
+        console.log('地図を札幌市の範囲に移動しました')
+      }, 100)
+    }
+  }, [sapporoBounds])
 
   // 行政区域の表示/非表示
   useEffect(() => {
