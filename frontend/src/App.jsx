@@ -721,10 +721,10 @@ function App() {
             
             {/* チャットメッセージ表示エリア（LINE風） */}
             <div style={{
-              background: '#ffffff',
-              border: '1px solid #ddd',
+              background: '#f7f7f7',
+              border: 'none',
               borderRadius: '8px',
-              padding: '16px',
+              padding: '20px 12px',
               marginBottom: '12px',
               maxHeight: '400px',
               overflowY: 'auto',
@@ -739,52 +739,54 @@ function App() {
                   <div key={idx} style={{
                     display: 'flex',
                     flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                    alignItems: 'flex-start',
-                    marginBottom: '16px',
-                    gap: '8px'
+                    alignItems: 'flex-end',
+                    marginBottom: '20px',
+                    gap: '10px'
                   }}>
                     {/* アイコン */}
                     <div style={{
-                      width: '40px',
-                      height: '40px',
+                      width: '36px',
+                      height: '36px',
                       borderRadius: '50%',
-                      background: msg.role === 'user' ? '#2196F3' : '#06C755',
+                      background: msg.role === 'user' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg, #06C755 0%, #00B900 100%)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '20px',
-                      flexShrink: 0
+                      fontSize: '18px',
+                      flexShrink: 0,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
                     }}>
                       {msg.role === 'user' ? '👤' : '🤖'}
                     </div>
                     
                     {/* メッセージバブル */}
                     <div style={{
-                      maxWidth: '70%',
+                      maxWidth: '75%',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start'
                     }}>
                       <div style={{
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        marginBottom: '4px',
-                        color: '#666',
-                        paddingLeft: msg.role === 'user' ? '0' : '4px',
-                        paddingRight: msg.role === 'user' ? '4px' : '0'
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        marginBottom: '6px',
+                        color: '#888',
+                        paddingLeft: msg.role === 'user' ? '0' : '8px',
+                        paddingRight: msg.role === 'user' ? '8px' : '0'
                       }}>
                         {msg.role === 'user' ? 'あなた' : 'AI'}
                       </div>
                       <div style={{
-                        padding: '12px 16px',
-                        borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                        background: msg.role === 'user' ? '#2196F3' : '#06C755',
+                        padding: '14px 18px',
+                        borderRadius: msg.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                        background: msg.role === 'user' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg, #06C755 0%, #00B900 100%)',
                         color: 'white',
                         fontSize: '14px',
-                        lineHeight: '1.6',
+                        lineHeight: '1.7',
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                        position: 'relative'
                       }}>
                         {msg.content}
                       </div>
