@@ -104,7 +104,7 @@ function generateMockAnalysis(requestData) {
 }
 
 function App() {
-  const [mode, setMode] = useState('map') // 'map', 'upload', or 'forest_registry'
+  const [mode, setMode] = useState('map') // 'map', 'upload', 'chatbot'
   const [fileId, setFileId] = useState(null)
   const [fileMetadata, setFileMetadata] = useState(null)
   const [imageBounds, setImageBounds] = useState(null)
@@ -118,6 +118,8 @@ function App() {
   const [presetImages, setPresetImages] = useState([])
   const [loadingPresets, setLoadingPresets] = useState(false)
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput] = useState('')
 
   const handleClearResults = useCallback(() => {
     console.log('解析結果をクリアします')
@@ -243,6 +245,67 @@ function App() {
       setUploading(false)
     }
   }
+
+  const handleChatSubmit = useCallback(() => {
+    if (!chatInput.trim()) return
+    
+    const userMessage = chatInput.trim()
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    setChatInput('')
+    
+    // テスト用文言をチェック
+    if (userMessage === '札幌市全体の材積を解析したい。') {
+      setAnalyzing(true)
+      
+      // 少し遅延を入れてAIっぽく見せる
+      setTimeout(() => {
+        // 札幌市の大まかな座標範囲
+        const sapporoBounds = {
+          min_lat: 42.9,
+          min_lon: 141.1,
+          max_lat: 43.2,
+          max_lon: 141.6
+        }
+        
+        // 札幌市全体の面積（約1,121 km²）
+        const areaKm2 = 1121
+        
+        // 樹木密度（1km²あたり800-1500本）
+        const treesPerKm2 = Math.floor(Math.random() * 700) + 800
+        const treeCount = Math.floor(areaKm2 * treesPerKm2)
+        
+        // 材積（1本あたり0.3-0.8m³）
+        const volumePerTree = Math.random() * 0.5 + 0.3
+        const totalVolume = treeCount * volumePerTree
+        
+        const mockResult = {
+          tree_count: treeCount,
+          volume_m3: Math.round(totalVolume * 100) / 100,
+          confidence: 'medium',
+          warnings: [
+            '解析面積: 1,121 km²（札幌市全体）',
+            '対象地域: 札幌市',
+            '※MVP版: チャットボット解析のシミュレーションです',
+            '※本格運用時はChatGPT APIを使用します'
+          ],
+          tree_points: [] // 広域のため個別の樹木位置は表示しない
+        }
+        
+        setResult(mockResult)
+        setChatMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。`
+        }])
+        setAnalyzing(false)
+      }, 1500)
+    } else {
+      // テスト用文言以外の場合
+      setChatMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'MVP版では、テスト用の文言のみ対応しています。\n\n以下の文言をコピーして入力してください：\n「札幌市全体の材積を解析したい。」'
+      }])
+    }
+  }, [chatInput])
 
   const handleAnalyze = useCallback(async (bounds, polygonCoords = null, registryId = null) => {
     // モードB（画像アップロード）の場合はファイル必須
@@ -375,7 +438,7 @@ function App() {
         
         <div className="section">
           <h2>解析モード選択</h2>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
             <button
               onClick={() => setMode('map')}
               style={{
@@ -387,7 +450,7 @@ function App() {
                 borderRadius: '4px',
                 cursor: 'pointer',
                 fontWeight: mode === 'map' ? 'bold' : 'normal',
-                fontSize: '13px'
+                fontSize: '12px'
               }}
             >
               A: 地図から解析
@@ -403,33 +466,188 @@ function App() {
                 borderRadius: '4px',
                 cursor: 'pointer',
                 fontWeight: mode === 'upload' ? 'bold' : 'normal',
-                fontSize: '13px'
+                fontSize: '12px'
               }}
             >
               B: 画像から解析
+            </button>
+            <button
+              onClick={() => setMode('chatbot')}
+              style={{
+                flex: 1,
+                padding: '10px',
+                background: mode === 'chatbot' ? '#2c5f2d' : '#ddd',
+                color: mode === 'chatbot' ? 'white' : '#333',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: mode === 'chatbot' ? 'bold' : 'normal',
+                fontSize: '12px'
+              }}
+            >
+              C: チャットボット
             </button>
           </div>
           <p className="instruction" style={{ fontSize: '13px', color: '#666' }}>
             {mode === 'map' 
               ? '地図上で範囲を指定、または森林簿レイヤーから小班を選択'
-              : '画像をアップロードして範囲を指定、または森林簿レイヤーから小班を選択'}
+              : mode === 'upload'
+              ? '画像をアップロードして範囲を指定、または森林簿レイヤーから小班を選択'
+              : 'AIとやり取りしながら解析を実行'}
           </p>
-          <div style={{
-            background: '#fff3cd',
-            padding: '12px',
-            borderRadius: '4px',
-            marginTop: '10px',
-            fontSize: '12px',
-            border: '1px solid #ffc107'
-          }}>
-            <strong style={{ color: '#856404' }}>💡 ヒント</strong>
-            <p style={{ marginTop: '8px', marginBottom: 0, color: '#856404', lineHeight: '1.6' }}>
-              {mode === 'map' 
-                ? '地図上で矩形/ポリゴンを描画するか、「📋 森林簿」ボタンをONにして林班・小班をクリックできます。'
-                : '画像をアップロード後、矩形/ポリゴンを描画するか、「📋 森林簿」ボタンをONにして林班・小班をクリックできます。'}
-            </p>
-          </div>
+          {mode !== 'chatbot' && (
+            <div style={{
+              background: '#fff3cd',
+              padding: '12px',
+              borderRadius: '4px',
+              marginTop: '10px',
+              fontSize: '12px',
+              border: '1px solid #ffc107'
+            }}>
+              <strong style={{ color: '#856404' }}>💡 ヒント</strong>
+              <p style={{ marginTop: '8px', marginBottom: 0, color: '#856404', lineHeight: '1.6' }}>
+                {mode === 'map' 
+                  ? '地図上で矩形/ポリゴンを描画するか、「📋 森林簿」ボタンをONにして林班・小班をクリックできます。'
+                  : '画像をアップロード後、矩形/ポリゴンを描画するか、「📋 森林簿」ボタンをONにして林班・小班をクリックできます。'}
+              </p>
+            </div>
+          )}
         </div>
+
+        {mode === 'chatbot' && (
+          <div className="section">
+            <h2>チャットボット解析</h2>
+            <div style={{
+              background: '#e3f2fd',
+              padding: '12px',
+              borderRadius: '4px',
+              marginBottom: '15px',
+              fontSize: '12px',
+              border: '1px solid #2196F3'
+            }}>
+              <strong style={{ color: '#0d47a1' }}>🤖 チャットボット解析について</strong>
+              <p style={{ marginTop: '8px', marginBottom: 0, color: '#0d47a1', lineHeight: '1.6' }}>
+                AIとやり取りしながら解析を実行できます。本格運用時はChatGPT APIを使用しますが、MVP版ではテスト用の文言で動作確認できます。
+              </p>
+            </div>
+            
+            <div style={{
+              background: '#fff3cd',
+              padding: '12px',
+              borderRadius: '4px',
+              marginBottom: '15px',
+              fontSize: '12px',
+              border: '1px solid #ffc107'
+            }}>
+              <strong style={{ color: '#856404' }}>📝 テスト用文言</strong>
+              <p style={{ marginTop: '8px', marginBottom: '8px', color: '#856404', lineHeight: '1.6' }}>
+                以下の文言をコピーして入力してください：
+              </p>
+              <div style={{
+                background: 'white',
+                padding: '10px',
+                borderRadius: '4px',
+                fontFamily: 'monospace',
+                fontSize: '13px',
+                color: '#333',
+                border: '1px solid #ddd',
+                cursor: 'pointer'
+              }}
+              onClick={() => {
+                navigator.clipboard.writeText('札幌市全体の材積を解析したい。')
+                alert('クリップボードにコピーしました！')
+              }}
+              title="クリックでコピー"
+              >
+                札幌市全体の材積を解析したい。
+              </div>
+            </div>
+            
+            {/* チャットメッセージ表示エリア */}
+            <div style={{
+              background: '#f5f5f5',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              padding: '12px',
+              marginBottom: '12px',
+              maxHeight: '300px',
+              overflowY: 'auto',
+              minHeight: '150px'
+            }}>
+              {chatMessages.length === 0 ? (
+                <p style={{ color: '#999', fontSize: '13px', textAlign: 'center', margin: '50px 0' }}>
+                  メッセージを入力してください
+                </p>
+              ) : (
+                chatMessages.map((msg, idx) => (
+                  <div key={idx} style={{
+                    marginBottom: '12px',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    background: msg.role === 'user' ? '#e3f2fd' : '#f1f8e9',
+                    border: msg.role === 'user' ? '1px solid #2196F3' : '1px solid #8BC34A'
+                  }}>
+                    <div style={{
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      marginBottom: '5px',
+                      color: msg.role === 'user' ? '#0d47a1' : '#33691e'
+                    }}>
+                      {msg.role === 'user' ? '👤 あなた' : '🤖 AI'}
+                    </div>
+                    <div style={{
+                      fontSize: '13px',
+                      color: '#333',
+                      whiteSpace: 'pre-wrap',
+                      lineHeight: '1.5'
+                    }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            {/* チャット入力欄 */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !analyzing) {
+                    handleChatSubmit()
+                  }
+                }}
+                placeholder="メッセージを入力..."
+                disabled={analyzing}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '13px'
+                }}
+              />
+              <button
+                onClick={handleChatSubmit}
+                disabled={analyzing || !chatInput.trim()}
+                style={{
+                  padding: '10px 20px',
+                  background: analyzing || !chatInput.trim() ? '#ccc' : '#2c5f2d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: analyzing || !chatInput.trim() ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 'bold'
+                }}
+              >
+                {analyzing ? '⏳' : '送信'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {mode === 'upload' && (
           <>
@@ -627,17 +845,19 @@ function App() {
           </>
         )}
 
-        <div className="section">
-          <h2>{mode === 'upload' ? '2. ' : ''}範囲を指定</h2>
-          <p className="instruction">
-            矩形/ポリゴンを描画、または森林簿から小班を選択
-          </p>
-          <p className="instruction" style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>
-            ▭ 矩形: ドラッグで描画<br />
-            ⬡ ポリゴン: クリックで頂点追加、ダブルクリックで完了<br />
-            📋 森林簿: ボタンをONにして小班をクリック
-          </p>
-        </div>
+        {mode !== 'chatbot' && (
+          <div className="section">
+            <h2>{mode === 'upload' ? '2. ' : ''}範囲を指定</h2>
+            <p className="instruction">
+              矩形/ポリゴンを描画、または森林簿から小班を選択
+            </p>
+            <p className="instruction" style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>
+              ▭ 矩形: ドラッグで描画<br />
+              ⬡ ポリゴン: クリックで頂点追加、ダブルクリックで完了<br />
+              📋 森林簿: ボタンをONにして小班をクリック
+            </p>
+          </div>
+        )}
 
         {analyzing && (
           <div className="section">
@@ -715,7 +935,7 @@ function App() {
       <div className="map-container">
         <Map 
           onAnalyze={handleAnalyze} 
-          disabled={analyzing || (mode === 'upload' && !fileId)}
+          disabled={analyzing || (mode === 'upload' && !fileId) || mode === 'chatbot'}
           imageBounds={mode === 'upload' ? imageBounds : null}
           fileId={fileId}
           zoomToImage={zoomToImage}
