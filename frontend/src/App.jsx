@@ -273,7 +273,7 @@ function App() {
           const newMessages = [...prev]
           newMessages[newMessages.length - 1] = {
             role: 'assistant',
-            content: '衛星画像データを解析中...',
+            content: '画像データを解析中...',
             isTyping: true
           }
           return newMessages
