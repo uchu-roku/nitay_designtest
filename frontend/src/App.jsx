@@ -474,7 +474,7 @@ function App() {
           const newMessages = [...prev]
           newMessages[newMessages.length - 1] = {
             role: 'assistant',
-            content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。地図上に樹木位置（主に南区）と札幌市の範囲を表示しました。`
+            content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。地図上に樹木位置と札幌市の範囲を表示しました。`
           }
           return newMessages
         })
