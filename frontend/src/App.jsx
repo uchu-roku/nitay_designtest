@@ -133,7 +133,7 @@ function App() {
       {
         id: '02_GE_modified',
         filename: '02_GE_modified.tif',
-        path: '/zaisekiyosokuapp/sample-images/02_GE_modified.tif'
+        path: '/zaisekiyosokuapp/sample-images/02_GE_modified.png'
       }
     ]
     setPresetImages(staticImages)
@@ -150,8 +150,8 @@ function App() {
       // MVP版: バックエンドAPIを使わず、直接画像パスを設定
       console.log('プリセット画像を選択:', imageId)
       
-      // 画像のパスを設定（publicフォルダ内）
-      const imagePath = `/zaisekiyosokuapp/sample-images/${imageId}.tif`
+      // 画像のパスを設定（publicフォルダ内、PNG形式）
+      const imagePath = `/zaisekiyosokuapp/sample-images/${imageId}.png`
       
       // ファイルIDとして画像パスを使用
       setFileId(imagePath)
