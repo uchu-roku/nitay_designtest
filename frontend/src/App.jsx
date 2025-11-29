@@ -126,17 +126,17 @@ function App() {
     setForestRegistryId(null)
   }, [])
 
-  // プリセット画像リストを取得
+  // プリセット画像リストを取得（MVP版：静的リスト）
   useEffect(() => {
-    const fetchPresetImages = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/preset-images`)
-        setPresetImages(response.data.images || [])
-      } catch (err) {
-        console.error('プリセット画像の取得エラー:', err)
+    // MVP版: バックエンドAPIを使わず、静的な画像リストを使用
+    const staticImages = [
+      {
+        id: '02_GE_modified',
+        filename: '02_GE_modified.tif',
+        path: '/zaisekiyosokuapp/sample-images/02_GE_modified.tif'
       }
-    }
-    fetchPresetImages()
+    ]
+    setPresetImages(staticImages)
   }, [])
 
   const handlePresetImageSelect = async (imageId) => {
@@ -147,31 +147,44 @@ function App() {
     setImageQualityWarnings([])
 
     try {
-      const response = await axios.post(`${API_URL}/upload-preset/${imageId}`)
+      // MVP版: バックエンドAPIを使わず、直接画像パスを設定
+      console.log('プリセット画像を選択:', imageId)
       
-      console.log('プリセット画像読み込みレスポンス:', response.data)
+      // 画像のパスを設定（publicフォルダ内）
+      const imagePath = `/zaisekiyosokuapp/sample-images/${imageId}.tif`
       
-      setFileId(response.data.file_id)
-      setFileMetadata(response.data.info)
+      // ファイルIDとして画像パスを使用
+      setFileId(imagePath)
       
-      // 画像品質の警告を設定
-      if (response.data.info && response.data.info.warnings) {
-        setImageQualityWarnings(response.data.info.warnings)
+      // MVP版: 固定の座標情報（北見市の座標）
+      const mockBbox = {
+        min_lat: 43.8,
+        min_lon: 143.8,
+        max_lat: 43.9,
+        max_lon: 143.9
       }
       
-      // GeoTIFF情報がある場合は地図を移動（画像読み込みは別途通知を待つ）
-      if (response.data.info && response.data.info.bbox) {
-        console.log('画像の境界:', response.data.info.bbox)
-        setImageBounds(response.data.info.bbox)
-      } else {
-        console.warn('GeoTIFF情報が見つかりません:', response.data.info)
-        setError('警告: 画像に座標情報がありません。地図上に表示できません。')
-        setImageLoaded(true) // エラーの場合は読み込み完了扱い
-      }
+      setFileMetadata({
+        bbox: mockBbox,
+        width: 1000,
+        height: 1000,
+        crs: 'EPSG:4326'
+      })
+      
+      setImageBounds(mockBbox)
+      
+      // 警告メッセージ
+      setImageQualityWarnings([
+        'MVP版: 簡易的な座標情報を使用しています',
+        '実際の画像位置とは異なる場合があります'
+      ])
+      
+      console.log('画像の境界（MVP版）:', mockBbox)
+      setImageLoaded(true)
     } catch (err) {
       console.error('プリセット画像読み込みエラー:', err)
-      setError(err.response?.data?.detail || 'プリセット画像の読み込みに失敗しました')
-      setImageLoaded(true) // エラーの場合は読み込み完了扱い
+      setError('プリセット画像の読み込みに失敗しました')
+      setImageLoaded(true)
     } finally {
       setLoadingPresets(false)
     }
