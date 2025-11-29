@@ -1091,7 +1091,7 @@ function App() {
       <div className="map-container">
         <Map 
           onAnalyze={handleAnalyze} 
-          disabled={analyzing || (mode === 'upload' && !fileId) || mode === 'chatbot'}
+          disabled={analyzing || (mode === 'upload' && !fileId)}
           imageBounds={mode === 'upload' ? imageBounds : null}
           fileId={fileId}
           zoomToImage={zoomToImage}
