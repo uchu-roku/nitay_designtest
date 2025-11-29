@@ -552,11 +552,22 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
         .then(data => {
           console.log('行政区域データ読み込み完了')
           
-          // 札幌市のポリゴンを抽出
+          // 札幌市のポリゴンを抽出（N03_004が市区町村名）
           const sapporoFeatures = data.features.filter(feature => {
-            const name = feature.properties.N03_001 || feature.properties.name || ''
-            return name.includes('札幌') || name === '札幌市'
+            const city = feature.properties.N03_004 || ''
+            const ward = feature.properties.N03_005 || ''
+            // 札幌市の各区を抽出（中央区、北区、東区、白石区、豊平区、南区、西区、厚別区、手稲区、清田区）
+            return city.includes('札幌') || 
+                   ward.includes('中央') || ward.includes('北区') || ward.includes('東区') ||
+                   ward.includes('白石') || ward.includes('豊平') || ward.includes('南区') ||
+                   ward.includes('西区') || ward.includes('厚別') || ward.includes('手稲') ||
+                   ward.includes('清田')
           })
+          
+          console.log('抽出された札幌市のフィーチャー:', sapporoFeatures.length)
+          if (sapporoFeatures.length > 0) {
+            console.log('最初のフィーチャーのプロパティ:', sapporoFeatures[0].properties)
+          }
           
           if (sapporoFeatures.length === 0) {
             console.warn('札幌市のポリゴンが見つかりません。全データを表示します。')
