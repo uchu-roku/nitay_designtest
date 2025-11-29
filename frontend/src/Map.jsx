@@ -397,18 +397,18 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       map.removeLayer(imageLayerRef.current)
     }
 
-    // 画像の境界
+    // 画像の境界（min_lat/max_lat形式に対応）
     const bounds = [
-      [imageBounds.south, imageBounds.west],
-      [imageBounds.north, imageBounds.east]
+      [imageBounds.min_lat || imageBounds.south, imageBounds.min_lon || imageBounds.west],
+      [imageBounds.max_lat || imageBounds.north, imageBounds.max_lon || imageBounds.east]
     ]
     console.log('Leaflet用の境界:', bounds)
 
     // ローディング開始
     setImageLoading(true)
 
-    // 画像オーバーレイを追加
-    const imageUrl = `${API_URL}/image/${fileId}`
+    // 画像オーバーレイを追加（MVP版: 直接パスを使用）
+    const imageUrl = fileId.startsWith('/') ? fileId : `${API_URL}/image/${fileId}`
     console.log('画像URL:', imageUrl)
     
     const imageLayer = L.imageOverlay(imageUrl, bounds, {
@@ -457,8 +457,8 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
     const map = mapInstanceRef.current
 
     const bounds = [
-      [imageBounds.south, imageBounds.west],
-      [imageBounds.north, imageBounds.east]
+      [imageBounds.min_lat || imageBounds.south, imageBounds.min_lon || imageBounds.west],
+      [imageBounds.max_lat || imageBounds.north, imageBounds.max_lon || imageBounds.east]
     ]
 
     // アニメーション付きでズーム
