@@ -719,45 +719,75 @@ function App() {
               </div>
             </div>
             
-            {/* チャットメッセージ表示エリア */}
+            {/* チャットメッセージ表示エリア（LINE風） */}
             <div style={{
-              background: '#f5f5f5',
+              background: '#ffffff',
               border: '1px solid #ddd',
-              borderRadius: '4px',
-              padding: '12px',
+              borderRadius: '8px',
+              padding: '16px',
               marginBottom: '12px',
-              maxHeight: '300px',
+              maxHeight: '400px',
               overflowY: 'auto',
-              minHeight: '150px'
+              minHeight: '200px'
             }}>
               {chatMessages.length === 0 ? (
-                <p style={{ color: '#999', fontSize: '13px', textAlign: 'center', margin: '50px 0' }}>
+                <p style={{ color: '#999', fontSize: '13px', textAlign: 'center', margin: '80px 0' }}>
                   メッセージを入力してください
                 </p>
               ) : (
                 chatMessages.map((msg, idx) => (
                   <div key={idx} style={{
-                    marginBottom: '12px',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    background: msg.role === 'user' ? '#e3f2fd' : '#f1f8e9',
-                    border: msg.role === 'user' ? '1px solid #2196F3' : '1px solid #8BC34A'
+                    display: 'flex',
+                    flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                    alignItems: 'flex-start',
+                    marginBottom: '16px',
+                    gap: '8px'
                   }}>
+                    {/* アイコン */}
                     <div style={{
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      marginBottom: '5px',
-                      color: msg.role === 'user' ? '#0d47a1' : '#33691e'
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '50%',
+                      background: msg.role === 'user' ? '#2196F3' : '#06C755',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '20px',
+                      flexShrink: 0
                     }}>
-                      {msg.role === 'user' ? '👤 あなた' : '🤖 AI'}
+                      {msg.role === 'user' ? '👤' : '🤖'}
                     </div>
+                    
+                    {/* メッセージバブル */}
                     <div style={{
-                      fontSize: '13px',
-                      color: '#333',
-                      whiteSpace: 'pre-wrap',
-                      lineHeight: '1.5'
+                      maxWidth: '70%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start'
                     }}>
-                      {msg.content}
+                      <div style={{
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        marginBottom: '4px',
+                        color: '#666',
+                        paddingLeft: msg.role === 'user' ? '0' : '4px',
+                        paddingRight: msg.role === 'user' ? '4px' : '0'
+                      }}>
+                        {msg.role === 'user' ? 'あなた' : 'AI'}
+                      </div>
+                      <div style={{
+                        padding: '12px 16px',
+                        borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                        background: msg.role === 'user' ? '#2196F3' : '#06C755',
+                        color: 'white',
+                        fontSize: '14px',
+                        lineHeight: '1.6',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                      }}>
+                        {msg.content}
+                      </div>
                     </div>
                   </div>
                 ))
