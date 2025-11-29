@@ -539,43 +539,127 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
 
     // 札幌市の範囲を表示
     if (sapporoBounds) {
-      console.log('札幌市の範囲を表示:', sapporoBounds)
+      console.log('札幌市の行政区域を読み込みます')
 
-      const bounds = [
-        [sapporoBounds.min_lat, sapporoBounds.min_lon],
-        [sapporoBounds.max_lat, sapporoBounds.max_lon]
-      ]
-
-      // 矩形レイヤーを作成
-      const boundsLayer = L.rectangle(bounds, {
-        color: '#FF6B6B',
-        weight: 3,
-        opacity: 0.8,
-        fillColor: '#FF6B6B',
-        fillOpacity: 0.15,
-        pane: 'overlayPane'
-      }).addTo(map)
-
-      // ポップアップを追加
-      boundsLayer.bindPopup(`
-        <div style="font-size: 13px;">
-          <strong>🗺️ 札幌市全体</strong><br/>
-          解析範囲: 約1,121 km²<br/>
-          緯度: ${sapporoBounds.min_lat.toFixed(2)}° - ${sapporoBounds.max_lat.toFixed(2)}°<br/>
-          経度: ${sapporoBounds.min_lon.toFixed(2)}° - ${sapporoBounds.max_lon.toFixed(2)}°
-        </div>
-      `)
-
-      sapporoBoundsLayerRef.current = boundsLayer
-
-      // 地図を札幌市の範囲に移動
-      setTimeout(() => {
-        map.fitBounds(bounds, {
-          padding: [50, 50],
-          maxZoom: 11
+      const baseUrl = import.meta.env.BASE_URL || '/'
+      const adminUrl = `${baseUrl}data/administrative/admin_simple.geojson`
+      
+      fetch(adminUrl)
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.json()
         })
-        console.log('地図を札幌市の範囲に移動しました')
-      }, 100)
+        .then(data => {
+          console.log('行政区域データ読み込み完了')
+          
+          // 札幌市のポリゴンを抽出
+          const sapporoFeatures = data.features.filter(feature => {
+            const name = feature.properties.N03_001 || feature.properties.name || ''
+            return name.includes('札幌') || name === '札幌市'
+          })
+          
+          if (sapporoFeatures.length === 0) {
+            console.warn('札幌市のポリゴンが見つかりません。全データを表示します。')
+            // 札幌市が見つからない場合は、座標範囲から矩形を表示
+            const bounds = [
+              [sapporoBounds.min_lat, sapporoBounds.min_lon],
+              [sapporoBounds.max_lat, sapporoBounds.max_lon]
+            ]
+            
+            const boundsLayer = L.rectangle(bounds, {
+              color: '#FF6B6B',
+              weight: 3,
+              opacity: 0.8,
+              fillColor: '#FF6B6B',
+              fillOpacity: 0.2,
+              pane: 'overlayPane'
+            }).addTo(map)
+            
+            boundsLayer.bindPopup(`
+              <div style="font-size: 13px;">
+                <strong>🗺️ 札幌市全体（概算範囲）</strong><br/>
+                解析範囲: 約1,121 km²
+              </div>
+            `)
+            
+            sapporoBoundsLayerRef.current = boundsLayer
+            
+            map.fitBounds(bounds, {
+              padding: [50, 50],
+              maxZoom: 11
+            })
+            return
+          }
+          
+          console.log(`札幌市のポリゴンを${sapporoFeatures.length}件見つけました`)
+          
+          // GeoJSONレイヤーを作成
+          const sapporoLayer = L.geoJSON({
+            type: 'FeatureCollection',
+            features: sapporoFeatures
+          }, {
+            style: {
+              color: '#FF6B6B',
+              weight: 3,
+              opacity: 0.8,
+              fillColor: '#FF6B6B',
+              fillOpacity: 0.2
+            },
+            pane: 'overlayPane'
+          }).addTo(map)
+          
+          // ポップアップを追加
+          sapporoLayer.bindPopup(`
+            <div style="font-size: 13px;">
+              <strong>🗺️ 札幌市全体</strong><br/>
+              解析範囲: 約1,121 km²<br/>
+              対象地域: 札幌市行政区域
+            </div>
+          `)
+          
+          sapporoBoundsLayerRef.current = sapporoLayer
+          
+          // 地図を札幌市の範囲に移動
+          setTimeout(() => {
+            const bounds = sapporoLayer.getBounds()
+            map.fitBounds(bounds, {
+              padding: [50, 50],
+              maxZoom: 11
+            })
+            console.log('地図を札幌市の範囲に移動しました')
+          }, 100)
+        })
+        .catch(err => {
+          console.error('札幌市行政区域の読み込みエラー:', err)
+          // エラー時は矩形で表示
+          const bounds = [
+            [sapporoBounds.min_lat, sapporoBounds.min_lon],
+            [sapporoBounds.max_lat, sapporoBounds.max_lon]
+          ]
+          
+          const boundsLayer = L.rectangle(bounds, {
+            color: '#FF6B6B',
+            weight: 3,
+            opacity: 0.8,
+            fillColor: '#FF6B6B',
+            fillOpacity: 0.2,
+            pane: 'overlayPane'
+          }).addTo(map)
+          
+          boundsLayer.bindPopup(`
+            <div style="font-size: 13px;">
+              <strong>🗺️ 札幌市全体（概算範囲）</strong><br/>
+              解析範囲: 約1,121 km²
+            </div>
+          `)
+          
+          sapporoBoundsLayerRef.current = boundsLayer
+          
+          map.fitBounds(bounds, {
+            padding: [50, 50],
+            maxZoom: 11
+          })
+        })
     }
   }, [sapporoBounds])
 
