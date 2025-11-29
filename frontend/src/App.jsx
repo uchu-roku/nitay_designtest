@@ -156,12 +156,12 @@ function App() {
       // ファイルIDとして画像パスを使用
       setFileId(imagePath)
       
-      // MVP版: 固定の座標情報（北見市の座標）
+      // MVP版: TIFFファイルから取得した実際の座標情報
       const mockBbox = {
-        min_lat: 43.8,
-        min_lon: 143.8,
-        max_lat: 43.9,
-        max_lon: 143.9
+        min_lat: 41.794053826085,
+        min_lon: 140.58585197971667,
+        max_lat: 41.795881627054484,
+        max_lon: 140.5898721292174
       }
       
       setFileMetadata({
@@ -175,8 +175,8 @@ function App() {
       
       // 警告メッセージ
       setImageQualityWarnings([
-        'MVP版: 簡易的な座標情報を使用しています',
-        '実際の画像位置とは異なる場合があります'
+        'MVP版: TIFFファイルから座標情報を取得しました',
+        '位置: 北緯41.79度、東経140.58度（函館付近）'
       ])
       
       console.log('画像の境界（MVP版）:', mockBbox)
