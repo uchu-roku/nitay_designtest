@@ -466,14 +466,18 @@ function App() {
               {/* プリセット画像選択（MVP用） */}
               {presetImages.length > 0 && (
                 <div style={{
-                  background: '#f0f8ff',
-                  padding: '12px',
-                  borderRadius: '4px',
-                  marginBottom: '12px',
-                  border: '1px solid #4CAF50'
+                  background: '#e8f5e9',
+                  padding: '14px',
+                  borderRadius: '6px',
+                  marginBottom: '16px',
+                  border: '2px solid #4CAF50',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                 }}>
-                  <strong style={{ color: '#2c5f2d', fontSize: '13px' }}>🎯 サンプル画像を使用（MVP）</strong>
-                  <div style={{ marginTop: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '20px', marginRight: '8px' }}>🎯</span>
+                    <strong style={{ color: '#2c5f2d', fontSize: '14px' }}>サンプル画像を使用（MVP）</strong>
+                  </div>
+                  <div style={{ marginTop: '10px' }}>
                     {presetImages.map((img) => (
                       <button
                         key={img.id}
@@ -481,23 +485,37 @@ function App() {
                         disabled={loadingPresets}
                         style={{
                           width: '100%',
-                          padding: '10px',
-                          marginBottom: '6px',
+                          padding: '12px',
+                          marginBottom: '8px',
                           background: loadingPresets ? '#f5f5f5' : '#4CAF50',
                           color: 'white',
                           border: 'none',
-                          borderRadius: '4px',
+                          borderRadius: '5px',
                           cursor: loadingPresets ? 'not-allowed' : 'pointer',
-                          fontSize: '12px',
-                          fontWeight: 'bold'
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          transition: 'all 0.2s',
+                          boxShadow: loadingPresets ? 'none' : '0 2px 4px rgba(0,0,0,0.2)'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!loadingPresets) {
+                            e.target.style.background = '#45a049'
+                            e.target.style.transform = 'translateY(-1px)'
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!loadingPresets) {
+                            e.target.style.background = '#4CAF50'
+                            e.target.style.transform = 'translateY(0)'
+                          }
                         }}
                       >
-                        {loadingPresets ? '読み込み中...' : `📷 ${img.filename}`}
+                        {loadingPresets ? '⏳ 読み込み中...' : `📷 ${img.filename}`}
                       </button>
                     ))}
                   </div>
-                  <p style={{ marginTop: '8px', marginBottom: 0, fontSize: '11px', color: '#666' }}>
-                    ※ MVP版: 事前に配置された画像を使用します
+                  <p style={{ marginTop: '10px', marginBottom: 0, fontSize: '11px', color: '#2c5f2d', lineHeight: '1.4' }}>
+                    💡 事前に配置されたサンプル画像を使用できます
                   </p>
                 </div>
               )}
