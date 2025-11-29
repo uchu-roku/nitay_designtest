@@ -279,13 +279,25 @@ function App() {
         const totalVolume = treeCount * volumePerTree
         
         // 樹木位置を生成（地図表示用に100本）
+        // 札幌市の中心部に集中させる（行政区域の外に出ないように）
         const treePoints = []
+        const centerLat = (sapporoBounds.min_lat + sapporoBounds.max_lat) / 2
+        const centerLon = (sapporoBounds.min_lon + sapporoBounds.max_lon) / 2
         const latDiff = sapporoBounds.max_lat - sapporoBounds.min_lat
         const lonDiff = sapporoBounds.max_lon - sapporoBounds.min_lon
         
+        // 札幌市の実際の範囲に合わせて調整（中心から60%の範囲に制限）
+        const latRange = latDiff * 0.6
+        const lonRange = lonDiff * 0.6
+        
         for (let i = 0; i < 100; i++) {
-          const lat = sapporoBounds.min_lat + Math.random() * latDiff
-          const lon = sapporoBounds.min_lon + Math.random() * lonDiff
+          // 正規分布に近い分布で中心部に集中させる
+          const latOffset = (Math.random() + Math.random() - 1) * latRange / 2
+          const lonOffset = (Math.random() + Math.random() - 1) * lonRange / 2
+          
+          const lat = centerLat + latOffset
+          const lon = centerLon + lonOffset
+          
           const treeType = Math.random() < 0.6 ? 'coniferous' : 'broadleaf'
           const dbh = Math.random() * 30 + 15
           const volume = Math.random() * 1.0 + 0.2
