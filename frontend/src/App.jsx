@@ -257,9 +257,30 @@ function App() {
     if (userMessage === '札幌市全体の材積を解析したい。') {
       setAnalyzing(true)
       
-      // 少し遅延を入れてAIっぽく見せる
+      // AIが考えているような演出を追加
       ;(async () => {
-        await new Promise(resolve => setTimeout(resolve, 500))
+        // 1. 「考え中...」メッセージを表示
+        await new Promise(resolve => setTimeout(resolve, 800))
+        setChatMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: '札幌市全体の材積解析を開始します...',
+          isTyping: true 
+        }])
+        
+        // 2. データ読み込み中メッセージ
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        setChatMessages(prev => {
+          const newMessages = [...prev]
+          newMessages[newMessages.length - 1] = {
+            role: 'assistant',
+            content: '衛星画像データを解析中...',
+            isTyping: true
+          }
+          return newMessages
+        })
+        
+        // 3. 解析中メッセージ
+        await new Promise(resolve => setTimeout(resolve, 1500))
         // 札幌市の大まかな座標範囲
         const sapporoBounds = {
           min_lat: 42.9,
@@ -447,11 +468,16 @@ function App() {
           sapporo_bounds: sapporoBounds // 札幌市の範囲を追加
         }
         
+        // 4. 最終結果を表示
         setResult(mockResult)
-        setChatMessages(prev => [...prev, {
-          role: 'assistant',
-          content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。地図上に樹木位置（主に南区）と札幌市の範囲を表示しました。`
-        }])
+        setChatMessages(prev => {
+          const newMessages = [...prev]
+          newMessages[newMessages.length - 1] = {
+            role: 'assistant',
+            content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。地図上に樹木位置（主に南区）と札幌市の範囲を表示しました。`
+          }
+          return newMessages
+        })
         setAnalyzing(false)
       })()
     } else {
