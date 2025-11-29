@@ -258,7 +258,8 @@ function App() {
       setAnalyzing(true)
       
       // 少し遅延を入れてAIっぽく見せる
-      setTimeout(async () => {
+      ;(async () => {
+        await new Promise(resolve => setTimeout(resolve, 500))
         // 札幌市の大まかな座標範囲
         const sapporoBounds = {
           min_lat: 42.9,
@@ -339,7 +340,7 @@ function App() {
           // 樹木を生成（南区に70%、その他に30%）
           const minamiTreeCount = 70
           let attempts = 0
-          const maxAttempts = 10000
+          const maxAttempts = 5000 // 最大試行回数を減らして処理を軽量化
           
           // 南区に樹木を配置
           while (treePoints.length < minamiTreeCount && attempts < maxAttempts) {
@@ -452,7 +453,7 @@ function App() {
           content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。地図上に樹木位置（主に南区）と札幌市の範囲を表示しました。`
         }])
         setAnalyzing(false)
-      }, 1500)
+      })()
     } else {
       // テスト用文言以外の場合
       setChatMessages(prev => [...prev, {
