@@ -48,51 +48,79 @@ function generateMockAnalysis(requestData) {
     console.log('ポリゴン判定を使用:', polygon.length, '頂点')
   }
   
-  // 樹木位置を生成（最大1000本まで表示 - メッシュ密度を上げる）
-  const displayCount = Math.min(treeCount, 1000)
+  // グリッド状にメッシュを生成（範囲を埋め尽くす）
   const treePoints = []
   
-  // ポリゴンがある場合は、ポリゴン内の点のみ生成
-  let attempts = 0
-  const maxAttempts = displayCount * 20 // 最大試行回数
+  // メッシュサイズ（約10m四方）
+  const meshSizeM = 10
+  const latStep = meshSizeM / 111000 // 1度 ≈ 111km
+  const lonStep = meshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
   
-  while (treePoints.length < displayCount && attempts < maxAttempts) {
-    attempts++
-    
-    const lat = bbox.min_lat + Math.random() * latDiff
-    const lon = bbox.min_lon + Math.random() * lonDiff
-    
-    // ポリゴンが指定されている場合は範囲内チェック
-    if (polygon && !isPointInPolygon([lon, lat], polygon)) {
-      continue
-    }
-    
-    const treeType = Math.random() < 0.6 ? 'coniferous' : 'broadleaf'
-    const dbh = Math.random() * 30 + 15
-    const volume = Math.random() * 1.0 + 0.2
-    
-    treePoints.push({
-      lat,
-      lon,
-      tree_type: treeType,
-      dbh: Math.round(dbh * 10) / 10,
-      volume: Math.round(volume * 1000) / 1000
-    })
+  // グリッドの行数と列数を計算
+  const rows = Math.ceil(latDiff / latStep)
+  const cols = Math.ceil(lonDiff / lonStep)
+  
+  console.log(`グリッド生成: ${rows}行 x ${cols}列 = ${rows * cols}メッシュ`)
+  
+  // Perlin noise風の滑らかなグラデーションを生成するための補助関数
+  const smoothRandom = (x, y, seed) => {
+    // 簡易的な2Dノイズ関数（滑らかなグラデーション）
+    const n = Math.sin(x * 0.3 + seed) * Math.cos(y * 0.3 + seed * 1.5) * 0.5 + 0.5
+    const n2 = Math.sin(x * 0.7 + seed * 2) * Math.cos(y * 0.5 + seed * 0.7) * 0.3 + 0.5
+    return (n * 0.7 + n2 * 0.3)
   }
+  
+  const seed = Math.random() * 100
+  
+  // グリッド状に配置
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const lat = bbox.min_lat + (i + 0.5) * latStep
+      const lon = bbox.min_lon + (j + 0.5) * lonStep
+      
+      // ポリゴンが指定されている場合は範囲内チェック
+      if (polygon && !isPointInPolygon([lon, lat], polygon)) {
+        continue
+      }
+      
+      // 滑らかなグラデーションで材積を決定
+      const volumeBase = smoothRandom(i, j, seed)
+      const volumeVariation = Math.random() * 0.2 - 0.1 // ±10%のランダム性
+      const volumeNormalized = Math.max(0.1, Math.min(1.0, volumeBase + volumeVariation))
+      
+      // 材積を0.2〜1.2m³の範囲に変換
+      const volume = 0.2 + volumeNormalized * 1.0
+      
+      // 樹種もグラデーションに基づいて決定（針葉樹と広葉樹の分布に偏りを持たせる）
+      const treeTypeThreshold = smoothRandom(i * 0.5, j * 0.5, seed * 0.5)
+      const treeType = treeTypeThreshold > 0.4 ? 'coniferous' : 'broadleaf'
+      
+      // 胸高直径は材積に比例
+      const dbh = 15 + volumeNormalized * 30
+      
+      treePoints.push({
+        lat,
+        lon,
+        tree_type: treeType,
+        dbh: Math.round(dbh * 10) / 10,
+        volume: Math.round(volume * 1000) / 1000
+      })
+    }
+  }
+  
+  console.log(`生成されたメッシュ数: ${treePoints.length}`)
   
   const warnings = [
     `解析面積: ${areaKm2.toFixed(4)} km²`,
+    `メッシュ数: ${treePoints.length}個（10m四方グリッド）`
   ]
   
   if (forest_registry_id) {
     warnings.push(`森林簿ID: ${forest_registry_id}`)
   }
   
-  if (treeCount > 1000) {
-    warnings.push(`※ 検出本数: ${treeCount}本（地図上には1000本まで表示）`)
-  }
-  
   warnings.push('※MVP版: フロントエンドのみの簡易シミュレーションです')
+  warnings.push('※材積分布は滑らかなグラデーションで表示')
   
   return {
     tree_count: treeCount,
@@ -460,7 +488,8 @@ function App() {
           warnings: [
             '解析面積: 1,121 km²（札幌市全体）',
             '対象地域: 札幌市（主に南区の森林地帯）',
-            `※ 検出本数: ${treeCount.toLocaleString()}本（地図上には1000本まで表示）`,
+            `※ 検出本数: ${treeCount.toLocaleString()}本`,
+            `※ 地図表示: ${treePoints.length}個のサンプル点`,
             '※MVP版: チャットボット解析のシミュレーションです',
             '※本格運用時はChatGPT APIを使用します'
           ],

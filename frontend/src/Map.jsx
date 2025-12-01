@@ -505,10 +505,10 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
         // 針葉樹: 緑系（濃い緑）、広葉樹: 茶系（明るい緑）
         const baseColor = isConiferous ? '#2e7d32' : '#8bc34a'
         
-        // メッシュサイズを材積に応じて調整（5m〜15mの範囲 - より密度を高く）
-        const meshSize = 8 + (volumeRatio * 7)
+        // 固定メッシュサイズ（10m四方のグリッド）
+        const meshSize = 10
         
-        // 緯度経度からメッシュの範囲を計算（約5-15m四方）
+        // 緯度経度からメッシュの範囲を計算（約10m四方）
         const latOffset = meshSize / 111000 // 1度 ≈ 111km
         const lonOffset = meshSize / (111000 * Math.cos(point.lat * Math.PI / 180))
         
@@ -517,11 +517,11 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
           [point.lat + latOffset / 2, point.lon + lonOffset / 2]
         ]
         
-        // 矩形メッシュを作成
+        // 矩形メッシュを作成（境界線を薄くして隙間を減らす）
         const mesh = L.rectangle(bounds, {
           color: baseColor,
-          weight: 0.5,
-          opacity: 0.6,
+          weight: 0.2,
+          opacity: 0.3,
           fillColor: baseColor,
           fillOpacity: opacity,
           zIndexOffset: 500
