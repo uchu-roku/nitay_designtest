@@ -51,16 +51,30 @@ function generateMockAnalysis(requestData) {
   // グリッド状にメッシュを生成（範囲を埋め尽くす）
   const treePoints = []
   
-  // メッシュサイズ（約10m四方）
-  const meshSizeM = 10
-  const latStep = meshSizeM / 111000 // 1度 ≈ 111km
-  const lonStep = meshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
+  // メッシュサイズを動的に調整（最大5000メッシュまで）
+  const maxMeshes = 5000
+  let meshSizeM = 10 // 基本は10m四方
   
-  // グリッドの行数と列数を計算
-  const rows = Math.ceil(latDiff / latStep)
-  const cols = Math.ceil(lonDiff / lonStep)
+  // 仮のグリッド数を計算
+  let latStep = meshSizeM / 111000
+  let lonStep = meshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
+  let rows = Math.ceil(latDiff / latStep)
+  let cols = Math.ceil(lonDiff / lonStep)
+  let totalMeshes = rows * cols
   
-  console.log(`グリッド生成: ${rows}行 x ${cols}列 = ${rows * cols}メッシュ`)
+  // メッシュ数が多すぎる場合はメッシュサイズを大きくする
+  if (totalMeshes > maxMeshes) {
+    const scaleFactor = Math.sqrt(totalMeshes / maxMeshes)
+    meshSizeM = meshSizeM * scaleFactor
+    latStep = meshSizeM / 111000
+    lonStep = meshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
+    rows = Math.ceil(latDiff / latStep)
+    cols = Math.ceil(lonDiff / lonStep)
+    totalMeshes = rows * cols
+    console.log(`メッシュサイズを調整: ${meshSizeM.toFixed(1)}m四方（メッシュ数を${maxMeshes}以下に制限）`)
+  }
+  
+  console.log(`グリッド生成: ${rows}行 x ${cols}列 = ${totalMeshes}メッシュ（${meshSizeM.toFixed(1)}m四方）`)
   
   // Perlin noise風の滑らかなグラデーションを生成するための補助関数
   const smoothRandom = (x, y, seed) => {
@@ -72,38 +86,54 @@ function generateMockAnalysis(requestData) {
   
   const seed = Math.random() * 100
   
-  // グリッド状に配置
-  for (let i = 0; i < rows; i++) {
-    for (let j = 0; j < cols; j++) {
-      const lat = bbox.min_lat + (i + 0.5) * latStep
-      const lon = bbox.min_lon + (j + 0.5) * lonStep
-      
-      // ポリゴンが指定されている場合は範囲内チェック
-      if (polygon && !isPointInPolygon([lon, lat], polygon)) {
-        continue
+  // グリッド状に配置（安全性チェック付き）
+  try {
+    for (let i = 0; i < rows && treePoints.length < maxMeshes; i++) {
+      for (let j = 0; j < cols && treePoints.length < maxMeshes; j++) {
+        const lat = bbox.min_lat + (i + 0.5) * latStep
+        const lon = bbox.min_lon + (j + 0.5) * lonStep
+        
+        // ポリゴンが指定されている場合は範囲内チェック
+        if (polygon && !isPointInPolygon([lon, lat], polygon)) {
+          continue
+        }
+        
+        // 滑らかなグラデーションで材積を決定
+        const volumeBase = smoothRandom(i, j, seed)
+        const volumeVariation = Math.random() * 0.2 - 0.1 // ±10%のランダム性
+        const volumeNormalized = Math.max(0.1, Math.min(1.0, volumeBase + volumeVariation))
+        
+        // 材積を0.2〜1.2m³の範囲に変換
+        const volume = 0.2 + volumeNormalized * 1.0
+        
+        // 樹種もグラデーションに基づいて決定（針葉樹と広葉樹の分布に偏りを持たせる）
+        const treeTypeThreshold = smoothRandom(i * 0.5, j * 0.5, seed * 0.5)
+        const treeType = treeTypeThreshold > 0.4 ? 'coniferous' : 'broadleaf'
+        
+        // 胸高直径は材積に比例
+        const dbh = 15 + volumeNormalized * 30
+        
+        treePoints.push({
+          lat,
+          lon,
+          tree_type: treeType,
+          dbh: Math.round(dbh * 10) / 10,
+          volume: Math.round(volume * 1000) / 1000
+        })
       }
-      
-      // 滑らかなグラデーションで材積を決定
-      const volumeBase = smoothRandom(i, j, seed)
-      const volumeVariation = Math.random() * 0.2 - 0.1 // ±10%のランダム性
-      const volumeNormalized = Math.max(0.1, Math.min(1.0, volumeBase + volumeVariation))
-      
-      // 材積を0.2〜1.2m³の範囲に変換
-      const volume = 0.2 + volumeNormalized * 1.0
-      
-      // 樹種もグラデーションに基づいて決定（針葉樹と広葉樹の分布に偏りを持たせる）
-      const treeTypeThreshold = smoothRandom(i * 0.5, j * 0.5, seed * 0.5)
-      const treeType = treeTypeThreshold > 0.4 ? 'coniferous' : 'broadleaf'
-      
-      // 胸高直径は材積に比例
-      const dbh = 15 + volumeNormalized * 30
-      
+    }
+  } catch (error) {
+    console.error('グリッド生成エラー:', error)
+    // エラー時は最低限のメッシュを生成
+    if (treePoints.length === 0) {
+      const centerLat = (bbox.min_lat + bbox.max_lat) / 2
+      const centerLon = (bbox.min_lon + bbox.max_lon) / 2
       treePoints.push({
-        lat,
-        lon,
-        tree_type: treeType,
-        dbh: Math.round(dbh * 10) / 10,
-        volume: Math.round(volume * 1000) / 1000
+        lat: centerLat,
+        lon: centerLon,
+        tree_type: 'coniferous',
+        dbh: 25,
+        volume: 0.5
       })
     }
   }
@@ -112,7 +142,7 @@ function generateMockAnalysis(requestData) {
   
   const warnings = [
     `解析面積: ${areaKm2.toFixed(4)} km²`,
-    `メッシュ数: ${treePoints.length}個（10m四方グリッド）`
+    `メッシュ数: ${treePoints.length}個（${meshSizeM.toFixed(1)}m四方グリッド）`
   ]
   
   if (forest_registry_id) {
