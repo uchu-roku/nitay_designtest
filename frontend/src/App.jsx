@@ -144,8 +144,20 @@ function generateMockAnalysis(requestData) {
   
   console.log(`生成されたメッシュ数: ${treePoints.length}`)
   
+  // 針葉樹と広葉樹の本数を集計
+  const coniferousCount = treePoints.filter(p => p.tree_type === 'coniferous').length
+  const broadleafCount = treePoints.filter(p => p.tree_type === 'broadleaf').length
+  const totalTreeCount = coniferousCount + broadleafCount
+  
+  // 実際の材積を集計
+  const actualTotalVolume = treePoints.reduce((sum, p) => sum + p.volume, 0)
+  
+  console.log(`針葉樹: ${coniferousCount}本, 広葉樹: ${broadleafCount}本, 合計: ${totalTreeCount}本`)
+  console.log(`合計材積: ${actualTotalVolume.toFixed(2)} m³`)
+  
   const warnings = [
     `解析面積: ${areaKm2.toFixed(4)} km²`,
+    `検出本数: ${totalTreeCount.toLocaleString()}本（針葉樹: ${coniferousCount.toLocaleString()}本、広葉樹: ${broadleafCount.toLocaleString()}本）`,
     `メッシュ数: ${treePoints.length}個（${meshSizeM.toFixed(1)}m四方グリッド）`
   ]
   
@@ -157,8 +169,10 @@ function generateMockAnalysis(requestData) {
   warnings.push('※材積分布は滑らかなグラデーションで表示')
   
   return {
-    tree_count: treeCount,
-    volume_m3: Math.round(totalVolume * 100) / 100,
+    tree_count: totalTreeCount,
+    coniferous_count: coniferousCount,
+    broadleaf_count: broadleafCount,
+    volume_m3: Math.round(actualTotalVolume * 100) / 100,
     confidence: areaKm2 < 0.01 || areaKm2 > 10 ? 'low' : 'medium',
     warnings,
     tree_points: treePoints,
