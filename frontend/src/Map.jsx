@@ -492,36 +492,66 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       const minVolume = Math.min(...volumes)
       console.log(`材積範囲: ${minVolume.toFixed(2)} - ${maxVolume.toFixed(2)} m³`)
 
+      // 全体の範囲を計算
+      const lats = treePoints.map(p => p.lat)
+      const lons = treePoints.map(p => p.lon)
+      const minLat = Math.min(...lats)
+      const maxLat = Math.max(...lats)
+      const minLon = Math.min(...lons)
+      const maxLon = Math.max(...lons)
+      
+      // メッシュサイズを計算（最初のポイントから推定）
+      const avgLat = (minLat + maxLat) / 2
+      const meshSize = 10 // 基本は10m
+      const latOffset = meshSize / 111000
+      const lonOffset = meshSize / (111000 * Math.cos(avgLat * Math.PI / 180))
+      
+      // 白い背景レイヤーを追加（少し大きめに）
+      const backgroundBounds = [
+        [minLat - latOffset, minLon - lonOffset],
+        [maxLat + latOffset, maxLon + lonOffset]
+      ]
+      
+      const backgroundLayer = L.rectangle(backgroundBounds, {
+        color: 'rgba(255, 255, 255, 0.95)',
+        weight: 2,
+        opacity: 1,
+        fillColor: 'white',
+        fillOpacity: 0.95,
+        zIndexOffset: 499
+      })
+      
+      backgroundLayer.addTo(map)
+      treeMarkersRef.current.push(backgroundLayer)
+      console.log('白い背景レイヤーを追加しました')
+
       treePoints.forEach((point, index) => {
         const isConiferous = point.tree_type === 'coniferous'
         
-        // 材積に応じた不透明度を計算（0.2〜0.9の範囲 - より広い範囲で濃淡を表現）
+        // 材積に応じた不透明度を計算（0.3〜1.0の範囲 - 白背景で見やすく）
         const volumeRatio = maxVolume > minVolume 
           ? (point.volume - minVolume) / (maxVolume - minVolume)
           : 0.5
-        const opacity = 0.2 + (volumeRatio * 0.7)
+        const opacity = 0.3 + (volumeRatio * 0.7)
         
         // 樹種に応じた色を設定（はっきり区別できるように）
         // 針葉樹: 濃い緑（#1b5e20）、広葉樹: オレンジ系（#ff9800）
         const baseColor = isConiferous ? '#1b5e20' : '#ff9800'
         
-        // 固定メッシュサイズ（10m四方のグリッド）
-        const meshSize = 10
-        
-        // 緯度経度からメッシュの範囲を計算（約10m四方）
-        const latOffset = meshSize / 111000 // 1度 ≈ 111km
-        const lonOffset = meshSize / (111000 * Math.cos(point.lat * Math.PI / 180))
+        // 緯度経度からメッシュの範囲を計算
+        const pointLatOffset = meshSize / 111000
+        const pointLonOffset = meshSize / (111000 * Math.cos(point.lat * Math.PI / 180))
         
         const bounds = [
-          [point.lat - latOffset / 2, point.lon - lonOffset / 2],
-          [point.lat + latOffset / 2, point.lon + lonOffset / 2]
+          [point.lat - pointLatOffset / 2, point.lon - pointLonOffset / 2],
+          [point.lat + pointLatOffset / 2, point.lon + pointLonOffset / 2]
         ]
         
-        // 矩形メッシュを作成（境界線を薄くして隙間を減らす）
+        // 矩形メッシュを作成（境界線なしで隙間をなくす）
         const mesh = L.rectangle(bounds, {
           color: baseColor,
-          weight: 0.2,
-          opacity: 0.3,
+          weight: 0,
+          opacity: 0,
           fillColor: baseColor,
           fillOpacity: opacity,
           zIndexOffset: 500
