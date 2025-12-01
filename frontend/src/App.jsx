@@ -76,17 +76,7 @@ function generateMockAnalysis(requestData) {
   
   console.log(`グリッド生成: ${rows}行 x ${cols}列 = ${totalMeshes}メッシュ（${meshSizeM.toFixed(1)}m四方）`)
   
-  // Perlin noise風の滑らかなグラデーションを生成するための補助関数
-  const smoothRandom = (x, y, seed) => {
-    // 簡易的な2Dノイズ関数（滑らかなグラデーション）
-    const n = Math.sin(x * 0.3 + seed) * Math.cos(y * 0.3 + seed * 1.5) * 0.5 + 0.5
-    const n2 = Math.sin(x * 0.7 + seed * 2) * Math.cos(y * 0.5 + seed * 0.7) * 0.3 + 0.5
-    return (n * 0.7 + n2 * 0.3)
-  }
-  
-  const seed = Math.random() * 100
-  
-  // グリッド状に配置（安全性チェック付き）
+  // グリッド状に配置（完全ランダム）
   try {
     for (let i = 0; i < rows && treePoints.length < maxMeshes; i++) {
       for (let j = 0; j < cols && treePoints.length < maxMeshes; j++) {
@@ -98,19 +88,14 @@ function generateMockAnalysis(requestData) {
           continue
         }
         
-        // 滑らかなグラデーションで材積を決定（より広い範囲で変動）
-        const volumeBase = smoothRandom(i, j, seed)
-        const volumeVariation = Math.random() * 0.4 - 0.2 // ±20%のランダム性
-        const volumeNormalized = Math.max(0.0, Math.min(1.0, volumeBase + volumeVariation))
+        // 完全ランダムで材積を決定（0.1〜1.5m³）
+        const volume = 0.1 + Math.random() * 1.4
         
-        // 材積を0.1〜1.5m³の範囲に変換（より広い範囲で淡い部分も多く）
-        const volume = 0.1 + volumeNormalized * 1.4
-        
-        // 樹種もグラデーションに基づいて決定（針葉樹と広葉樹の分布に偏りを持たせる）
-        const treeTypeThreshold = smoothRandom(i * 0.5, j * 0.5, seed * 0.5)
-        const treeType = treeTypeThreshold > 0.4 ? 'coniferous' : 'broadleaf'
+        // 樹種をランダムに決定（針葉樹70%、広葉樹30%）
+        const treeType = Math.random() < 0.7 ? 'coniferous' : 'broadleaf'
         
         // 胸高直径は材積に比例
+        const volumeNormalized = (volume - 0.1) / 1.4
         const dbh = 15 + volumeNormalized * 30
         
         treePoints.push({

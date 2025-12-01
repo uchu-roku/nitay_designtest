@@ -537,14 +537,17 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       console.log('白い背景レイヤーを追加しました')
 
       treePoints.forEach((point, index) => {
+        const isConiferous = point.tree_type === 'coniferous'
+        
         // 材積に応じた不透明度を計算（0.2〜0.95の範囲）
         const volumeRatio = maxVolume > minVolume 
           ? (point.volume - minVolume) / (maxVolume - minVolume)
           : 0.5
         const opacity = 0.2 + (volumeRatio * 0.75)
         
-        // 緑の濃淡のみで表現（針葉樹・広葉樹の区別なし）
-        const baseColor = '#4CAF50'
+        // 針葉樹と広葉樹で色を分ける（はっきり区別）
+        // 針葉樹: 濃い緑（#2e7d32）、広葉樹: 茶色系（#8d6e63）
+        const baseColor = isConiferous ? '#2e7d32' : '#8d6e63'
         
         // 統一されたメッシュサイズで境界を計算（隙間なし）
         const bounds = [
@@ -1058,24 +1061,52 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
             🌲 材積分布
           </div>
           
-          {/* 材積の濃淡 */}
-          <div>
-            <div style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '12px' }}>
-              材積の濃淡
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+          {/* 針葉樹 */}
+          <div style={{ marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
               <div style={{ 
-                width: '50px', 
+                width: '16px', 
                 height: '16px', 
-                background: 'linear-gradient(to right, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.95))',
-                border: '1px solid #ccc',
+                background: '#2e7d32',
+                border: '1px solid #1b5e20',
                 borderRadius: '2px'
               }} />
-              <span style={{ fontSize: '11px', color: '#666' }}>少 → 多</span>
+              <span style={{ fontWeight: 'bold' }}>針葉樹</span>
             </div>
-            <div style={{ fontSize: '10px', color: '#888', marginTop: '4px', lineHeight: '1.4' }}>
-              ※緑が薄い：材積が少ない<br/>
-              ※緑が濃い：材積が多い
+            <div style={{ fontSize: '10px', color: '#666', marginLeft: '22px' }}>
+              緑色で表示
+            </div>
+          </div>
+          
+          {/* 広葉樹 */}
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+              <div style={{ 
+                width: '16px', 
+                height: '16px', 
+                background: '#8d6e63',
+                border: '1px solid #6d4c41',
+                borderRadius: '2px'
+              }} />
+              <span style={{ fontWeight: 'bold' }}>広葉樹</span>
+            </div>
+            <div style={{ fontSize: '10px', color: '#666', marginLeft: '22px' }}>
+              茶色で表示
+            </div>
+          </div>
+          
+          {/* 材積の濃淡 */}
+          <div style={{ 
+            borderTop: '1px solid #ddd', 
+            paddingTop: '8px',
+            marginTop: '8px'
+          }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '11px' }}>
+              材積の濃淡
+            </div>
+            <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.4' }}>
+              ※色が薄い：材積が少ない<br/>
+              ※色が濃い：材積が多い
             </div>
           </div>
         </div>
