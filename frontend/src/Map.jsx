@@ -470,7 +470,7 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
 
   }, [zoomToImage, imageBounds])
 
-  // 樹木位置の点を表示
+  // 樹木位置をメッシュ表示
   useEffect(() => {
     if (!mapInstanceRef.current) return
 
@@ -482,45 +482,67 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
     })
     treeMarkersRef.current = []
 
-    // 新しいマーカーを追加
+    // 新しいメッシュを追加
     if (treePoints && treePoints.length > 0) {
-      console.log(`樹木位置を表示: ${treePoints.length}本`)
+      console.log(`樹木位置をメッシュ表示: ${treePoints.length}本`)
+
+      // 材積の範囲を計算
+      const volumes = treePoints.map(p => p.volume)
+      const maxVolume = Math.max(...volumes)
+      const minVolume = Math.min(...volumes)
+      console.log(`材積範囲: ${minVolume.toFixed(2)} - ${maxVolume.toFixed(2)} m³`)
 
       treePoints.forEach((point, index) => {
         const isConiferous = point.tree_type === 'coniferous'
-        const color = isConiferous ? '#2e7d32' : '#f57c00' // 針葉樹: 緑, 広葉樹: オレンジ
-        const icon = isConiferous ? '🌲' : '🌳'
-
-        // カスタムアイコンを作成
-        const customIcon = L.divIcon({
-          html: `<div style="
-            font-size: 20px;
-            text-align: center;
-            line-height: 1;
-            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-          ">${icon}</div>`,
-          className: 'tree-marker',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
-        })
-
-        const marker = L.marker([point.lat, point.lon], {
-          icon: customIcon,
-          zIndexOffset: 600
+        
+        // 材積に応じた不透明度を計算（0.3〜0.8の範囲）
+        const volumeRatio = maxVolume > minVolume 
+          ? (point.volume - minVolume) / (maxVolume - minVolume)
+          : 0.5
+        const opacity = 0.3 + (volumeRatio * 0.5)
+        
+        // 樹種に応じた色を設定
+        // 針葉樹: 緑系（濃い緑）、広葉樹: 茶系（明るい緑）
+        const baseColor = isConiferous ? '#2e7d32' : '#8bc34a'
+        
+        // メッシュサイズを材積に応じて調整（10m〜30mの範囲）
+        const meshSize = 15 + (volumeRatio * 15)
+        
+        // 緯度経度からメッシュの範囲を計算（約10-30m四方）
+        const latOffset = meshSize / 111000 // 1度 ≈ 111km
+        const lonOffset = meshSize / (111000 * Math.cos(point.lat * Math.PI / 180))
+        
+        const bounds = [
+          [point.lat - latOffset / 2, point.lon - lonOffset / 2],
+          [point.lat + latOffset / 2, point.lon + lonOffset / 2]
+        ]
+        
+        // 矩形メッシュを作成
+        const mesh = L.rectangle(bounds, {
+          color: baseColor,
+          weight: 0.5,
+          opacity: 0.6,
+          fillColor: baseColor,
+          fillOpacity: opacity,
+          zIndexOffset: 500
         })
 
         // ポップアップを追加
         const treeTypeName = isConiferous ? '針葉樹' : '広葉樹'
-        marker.bindPopup(`
+        const icon = isConiferous ? '🌲' : '🌳'
+        mesh.bindPopup(`
           <div style="font-size: 13px;">
             <strong>${icon} ${treeTypeName}</strong><br/>
             胸高直径: ${point.dbh} cm<br/>
-            材積: ${point.volume} m³
+            材積: ${point.volume.toFixed(2)} m³<br/>
+            <span style="color: #666; font-size: 11px;">
+              (濃さ: ${(opacity * 100).toFixed(0)}%)
+            </span>
           </div>
         `)
 
-        marker.addTo(map)
-        treeMarkersRef.current.push(marker)
+        mesh.addTo(map)
+        treeMarkersRef.current.push(mesh)
       })
     }
   }, [treePoints])
