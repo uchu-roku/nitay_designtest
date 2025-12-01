@@ -516,6 +516,25 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       const avgLat = (minLat + maxLat) / 2
       const latStep = estimatedMeshSizeM / 111000
       const lonStep = estimatedMeshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
+      
+      // ポリゴン内のみに白い背景レイヤーを追加（少し大きめに）
+      const backgroundBounds = [
+        [minLat - latStep * 0.5, minLon - lonStep * 0.5],
+        [maxLat + latStep * 0.5, maxLon + lonStep * 0.5]
+      ]
+      
+      const backgroundLayer = L.rectangle(backgroundBounds, {
+        color: 'white',
+        weight: 0,
+        opacity: 0,
+        fillColor: 'white',
+        fillOpacity: 0.9,
+        zIndexOffset: 499
+      })
+      
+      backgroundLayer.addTo(map)
+      treeMarkersRef.current.push(backgroundLayer)
+      console.log('白い背景レイヤーを追加しました（ポリゴン内のみ）')
 
       treePoints.forEach((point, index) => {
         const isConiferous = point.tree_type === 'coniferous'
@@ -1083,9 +1102,9 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
             marginTop: '8px'
           }}>
             <div style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '11px' }}>
-              材積の濃淡
+              材積の濃淡（針葉樹）
             </div>
-            <div style={{ fontSize: '10px', lineHeight: '1.6' }}>
+            <div style={{ fontSize: '10px', lineHeight: '1.6', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
                 <div style={{ width: '30px', height: '12px', background: 'rgba(46, 125, 50, 0.2)', border: '1px solid #ddd' }} />
                 <span>0 - 10</span>
@@ -1108,6 +1127,36 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{ width: '30px', height: '12px', background: 'rgba(46, 125, 50, 0.95)', border: '1px solid #ddd' }} />
+                <span>50 - 60</span>
+              </div>
+            </div>
+            
+            <div style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '11px' }}>
+              材積の濃淡（広葉樹）
+            </div>
+            <div style={{ fontSize: '10px', lineHeight: '1.6' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.2)', border: '1px solid #ddd' }} />
+                <span>0 - 10</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.35)', border: '1px solid #ddd' }} />
+                <span>10 - 20</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.5)', border: '1px solid #ddd' }} />
+                <span>20 - 30</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.65)', border: '1px solid #ddd' }} />
+                <span>30 - 40</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.8)', border: '1px solid #ddd' }} />
+                <span>40 - 50</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.95)', border: '1px solid #ddd' }} />
                 <span>50 - 60</span>
               </div>
             </div>
