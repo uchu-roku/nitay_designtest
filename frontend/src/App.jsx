@@ -48,8 +48,8 @@ function generateMockAnalysis(requestData) {
     console.log('ポリゴン判定を使用:', polygon.length, '頂点')
   }
   
-  // 樹木位置を生成（最大100本まで表示）
-  const displayCount = Math.min(treeCount, 100)
+  // 樹木位置を生成（最大1000本まで表示 - メッシュ密度を上げる）
+  const displayCount = Math.min(treeCount, 1000)
   const treePoints = []
   
   // ポリゴンがある場合は、ポリゴン内の点のみ生成
@@ -88,8 +88,8 @@ function generateMockAnalysis(requestData) {
     warnings.push(`森林簿ID: ${forest_registry_id}`)
   }
   
-  if (treeCount > 100) {
-    warnings.push(`※ 検出本数: ${treeCount}本（地図上には100本まで表示）`)
+  if (treeCount > 1000) {
+    warnings.push(`※ 検出本数: ${treeCount}本（地図上には1000本まで表示）`)
   }
   
   warnings.push('※MVP版: フロントエンドのみの簡易シミュレーションです')
@@ -460,7 +460,7 @@ function App() {
           warnings: [
             '解析面積: 1,121 km²（札幌市全体）',
             '対象地域: 札幌市（主に南区の森林地帯）',
-            `※ 検出本数: ${treeCount.toLocaleString()}本（地図上には100本まで表示）`,
+            `※ 検出本数: ${treeCount.toLocaleString()}本（地図上には1000本まで表示）`,
             '※MVP版: チャットボット解析のシミュレーションです',
             '※本格運用時はChatGPT APIを使用します'
           ],

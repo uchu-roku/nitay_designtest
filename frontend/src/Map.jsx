@@ -505,10 +505,10 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
         // 針葉樹: 緑系（濃い緑）、広葉樹: 茶系（明るい緑）
         const baseColor = isConiferous ? '#2e7d32' : '#8bc34a'
         
-        // メッシュサイズを材積に応じて調整（10m〜30mの範囲）
-        const meshSize = 15 + (volumeRatio * 15)
+        // メッシュサイズを材積に応じて調整（5m〜15mの範囲 - より密度を高く）
+        const meshSize = 8 + (volumeRatio * 7)
         
-        // 緯度経度からメッシュの範囲を計算（約10-30m四方）
+        // 緯度経度からメッシュの範囲を計算（約5-15m四方）
         const latOffset = meshSize / 111000 // 1度 ≈ 111km
         const lonOffset = meshSize / (111000 * Math.cos(point.lat * Math.PI / 180))
         
@@ -998,6 +998,86 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
           </div>
           <div style={{ fontSize: '10px', color: '#888' }}>
             解析時は最新の高解像度衛星画像を使用
+          </div>
+        </div>
+      )}
+      
+      {/* 凡例表示 */}
+      {treePoints && treePoints.length > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '10px',
+            right: '10px',
+            background: 'rgba(255, 255, 255, 0.95)',
+            padding: '12px',
+            borderRadius: '4px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            zIndex: 1000,
+            fontSize: '12px',
+            minWidth: '180px'
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '13px' }}>
+            🌲 合計材積
+          </div>
+          
+          {/* 針葉樹 */}
+          <div style={{ marginBottom: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+              <div style={{ 
+                width: '16px', 
+                height: '16px', 
+                background: '#2e7d32',
+                border: '1px solid #1b5e20',
+                borderRadius: '2px'
+              }} />
+              <span style={{ fontWeight: 'bold' }}>針葉樹</span>
+            </div>
+            <div style={{ fontSize: '10px', color: '#666', marginLeft: '22px' }}>
+              濃い緑色で表示
+            </div>
+          </div>
+          
+          {/* 広葉樹 */}
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+              <div style={{ 
+                width: '16px', 
+                height: '16px', 
+                background: '#8bc34a',
+                border: '1px solid #689f38',
+                borderRadius: '2px'
+              }} />
+              <span style={{ fontWeight: 'bold' }}>広葉樹</span>
+            </div>
+            <div style={{ fontSize: '10px', color: '#666', marginLeft: '22px' }}>
+              明るい緑色で表示
+            </div>
+          </div>
+          
+          {/* 材積の濃淡 */}
+          <div style={{ 
+            borderTop: '1px solid #ddd', 
+            paddingTop: '8px',
+            marginTop: '8px'
+          }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px' }}>
+              材積の濃淡
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+              <div style={{ 
+                width: '30px', 
+                height: '12px', 
+                background: 'linear-gradient(to right, rgba(46, 125, 50, 0.3), rgba(46, 125, 50, 0.8))',
+                border: '1px solid #ccc',
+                borderRadius: '2px'
+              }} />
+              <span style={{ fontSize: '10px', color: '#666' }}>少 → 多</span>
+            </div>
+            <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>
+              ※色が濃いほど材積が大きい
+            </div>
           </div>
         </div>
       )}
