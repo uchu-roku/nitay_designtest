@@ -495,15 +495,15 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       treePoints.forEach((point, index) => {
         const isConiferous = point.tree_type === 'coniferous'
         
-        // 材積に応じた不透明度を計算（0.3〜0.8の範囲）
+        // 材積に応じた不透明度を計算（0.2〜0.9の範囲 - より広い範囲で濃淡を表現）
         const volumeRatio = maxVolume > minVolume 
           ? (point.volume - minVolume) / (maxVolume - minVolume)
           : 0.5
-        const opacity = 0.3 + (volumeRatio * 0.5)
+        const opacity = 0.2 + (volumeRatio * 0.7)
         
-        // 樹種に応じた色を設定
-        // 針葉樹: 緑系（濃い緑）、広葉樹: 茶系（明るい緑）
-        const baseColor = isConiferous ? '#2e7d32' : '#8bc34a'
+        // 樹種に応じた色を設定（はっきり区別できるように）
+        // 針葉樹: 濃い緑（#1b5e20）、広葉樹: オレンジ系（#ff9800）
+        const baseColor = isConiferous ? '#1b5e20' : '#ff9800'
         
         // 固定メッシュサイズ（10m四方のグリッド）
         const meshSize = 10
@@ -1028,8 +1028,8 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
               <div style={{ 
                 width: '16px', 
                 height: '16px', 
-                background: '#2e7d32',
-                border: '1px solid #1b5e20',
+                background: '#1b5e20',
+                border: '1px solid #0d3d10',
                 borderRadius: '2px'
               }} />
               <span style={{ fontWeight: 'bold' }}>針葉樹</span>
@@ -1045,14 +1045,14 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
               <div style={{ 
                 width: '16px', 
                 height: '16px', 
-                background: '#8bc34a',
-                border: '1px solid #689f38',
+                background: '#ff9800',
+                border: '1px solid #f57c00',
                 borderRadius: '2px'
               }} />
               <span style={{ fontWeight: 'bold' }}>広葉樹</span>
             </div>
             <div style={{ fontSize: '10px', color: '#666', marginLeft: '22px' }}>
-              明るい緑色で表示
+              オレンジ色で表示
             </div>
           </div>
           
@@ -1069,14 +1069,14 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
               <div style={{ 
                 width: '30px', 
                 height: '12px', 
-                background: 'linear-gradient(to right, rgba(46, 125, 50, 0.3), rgba(46, 125, 50, 0.8))',
+                background: 'linear-gradient(to right, rgba(27, 94, 32, 0.2), rgba(27, 94, 32, 0.9))',
                 border: '1px solid #ccc',
                 borderRadius: '2px'
               }} />
               <span style={{ fontSize: '10px', color: '#666' }}>少 → 多</span>
             </div>
             <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>
-              ※色が濃いほど材積が大きい
+              ※色が薄いほど材積が少ない
             </div>
           </div>
         </div>

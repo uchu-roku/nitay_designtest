@@ -98,13 +98,13 @@ function generateMockAnalysis(requestData) {
           continue
         }
         
-        // 滑らかなグラデーションで材積を決定
+        // 滑らかなグラデーションで材積を決定（より広い範囲で変動）
         const volumeBase = smoothRandom(i, j, seed)
-        const volumeVariation = Math.random() * 0.2 - 0.1 // ±10%のランダム性
-        const volumeNormalized = Math.max(0.1, Math.min(1.0, volumeBase + volumeVariation))
+        const volumeVariation = Math.random() * 0.4 - 0.2 // ±20%のランダム性
+        const volumeNormalized = Math.max(0.0, Math.min(1.0, volumeBase + volumeVariation))
         
-        // 材積を0.2〜1.2m³の範囲に変換
-        const volume = 0.2 + volumeNormalized * 1.0
+        // 材積を0.1〜1.5m³の範囲に変換（より広い範囲で淡い部分も多く）
+        const volume = 0.1 + volumeNormalized * 1.4
         
         // 樹種もグラデーションに基づいて決定（針葉樹と広葉樹の分布に偏りを持たせる）
         const treeTypeThreshold = smoothRandom(i * 0.5, j * 0.5, seed * 0.5)
