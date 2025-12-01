@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints, sapporoBounds, mode, onClearResults, onImageLoaded }) {
+function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints, polygonCoords, sapporoBounds, mode, onClearResults, onImageLoaded }) {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
   const imageLayerRef = useRef(null)
@@ -517,24 +517,41 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       const latStep = estimatedMeshSizeM / 111000
       const lonStep = estimatedMeshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
       
-      // ポリゴン内のみに白い背景レイヤーを追加（少し大きめに）
-      const backgroundBounds = [
-        [minLat - latStep * 0.5, minLon - lonStep * 0.5],
-        [maxLat + latStep * 0.5, maxLon + lonStep * 0.5]
-      ]
-      
-      const backgroundLayer = L.rectangle(backgroundBounds, {
-        color: 'white',
-        weight: 0,
-        opacity: 0,
-        fillColor: 'white',
-        fillOpacity: 0.9,
-        zIndexOffset: 499
-      })
+      // 白い背景レイヤーを追加（ポリゴンまたは矩形）
+      let backgroundLayer
+      if (polygonCoords && polygonCoords.length > 0) {
+        // ポリゴンが指定されている場合はポリゴン形状の背景
+        const polygonLatLngs = polygonCoords.map(coord => [coord.lat, coord.lon || coord.lng])
+        console.log('ポリゴン形状の白い背景を作成:', polygonLatLngs.length, '頂点')
+        
+        backgroundLayer = L.polygon(polygonLatLngs, {
+          color: 'white',
+          weight: 0,
+          opacity: 0,
+          fillColor: 'white',
+          fillOpacity: 0.9,
+          zIndexOffset: 499
+        })
+      } else {
+        // ポリゴンがない場合は矩形の背景
+        const backgroundBounds = [
+          [minLat - latStep * 0.5, minLon - lonStep * 0.5],
+          [maxLat + latStep * 0.5, maxLon + lonStep * 0.5]
+        ]
+        
+        backgroundLayer = L.rectangle(backgroundBounds, {
+          color: 'white',
+          weight: 0,
+          opacity: 0,
+          fillColor: 'white',
+          fillOpacity: 0.9,
+          zIndexOffset: 499
+        })
+      }
       
       backgroundLayer.addTo(map)
       treeMarkersRef.current.push(backgroundLayer)
-      console.log('白い背景レイヤーを追加しました（ポリゴン内のみ）')
+      console.log('白い背景レイヤーを追加しました')
 
       treePoints.forEach((point, index) => {
         const isConiferous = point.tree_type === 'coniferous'

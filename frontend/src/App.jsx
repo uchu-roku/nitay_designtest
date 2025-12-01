@@ -161,7 +161,8 @@ function generateMockAnalysis(requestData) {
     volume_m3: Math.round(totalVolume * 100) / 100,
     confidence: areaKm2 < 0.01 || areaKm2 > 10 ? 'low' : 'medium',
     warnings,
-    tree_points: treePoints
+    tree_points: treePoints,
+    polygon_coords: polygon_coords // ポリゴン座標を返す
   }
 }
 
@@ -1217,6 +1218,7 @@ function App() {
           fileId={fileId}
           zoomToImage={zoomToImage}
           treePoints={result?.tree_points || []}
+          polygonCoords={result?.polygon_coords || null}
           sapporoBounds={result?.sapporo_bounds || null}
           mode={mode}
           onClearResults={handleClearResults}
