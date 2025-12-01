@@ -76,7 +76,24 @@ function generateMockAnalysis(requestData) {
   
   console.log(`グリッド生成: ${rows}行 x ${cols}列 = ${totalMeshes}メッシュ（${meshSizeM.toFixed(1)}m四方）`)
   
-  // グリッド状に配置（完全ランダム）
+  // 自然な森林分布を模倣するノイズ関数（複数のスケールを組み合わせ）
+  const noise2D = (x, y, seed) => {
+    // 大きなスケールのノイズ（全体的な傾向）
+    const large = Math.sin(x * 0.05 + seed) * Math.cos(y * 0.05 + seed * 1.3) * 0.5 + 0.5
+    // 中程度のスケールのノイズ（林分の違い）
+    const medium = Math.sin(x * 0.2 + seed * 2) * Math.cos(y * 0.2 + seed * 2.5) * 0.5 + 0.5
+    // 小さなスケールのノイズ（個体差）
+    const small = Math.sin(x * 0.8 + seed * 3) * Math.cos(y * 0.8 + seed * 3.7) * 0.5 + 0.5
+    // ランダムノイズ
+    const random = Math.random()
+    
+    // 組み合わせ（大きなスケールを重視しつつ、ランダム性も加える）
+    return large * 0.4 + medium * 0.3 + small * 0.2 + random * 0.1
+  }
+  
+  const seed = Math.random() * 100
+  
+  // グリッド状に配置（自然な分布）
   try {
     for (let i = 0; i < rows && treePoints.length < maxMeshes; i++) {
       for (let j = 0; j < cols && treePoints.length < maxMeshes; j++) {
@@ -88,15 +105,17 @@ function generateMockAnalysis(requestData) {
           continue
         }
         
-        // 完全ランダムで材積を決定（0.1〜1.5m³）
-        const volume = 0.1 + Math.random() * 1.4
+        // ノイズ関数で材積を決定（グラデーション + ランダム性）
+        const volumeNoise = noise2D(i, j, seed)
+        const volume = 0.1 + volumeNoise * 1.4
         
-        // 樹種をランダムに決定（針葉樹70%、広葉樹30%）
-        const treeType = Math.random() < 0.7 ? 'coniferous' : 'broadleaf'
+        // 樹種もノイズ関数で決定（針葉樹85%、広葉樹15%）
+        // 地域的な偏りを持たせつつ、基本的に針葉樹が多い
+        const treeTypeNoise = noise2D(i * 0.3, j * 0.3, seed * 0.7)
+        const treeType = treeTypeNoise > 0.15 ? 'coniferous' : 'broadleaf'
         
         // 胸高直径は材積に比例
-        const volumeNormalized = (volume - 0.1) / 1.4
-        const dbh = 15 + volumeNormalized * 30
+        const dbh = 15 + volumeNoise * 30
         
         treePoints.push({
           lat,
