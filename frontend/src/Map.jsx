@@ -500,22 +500,33 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       const minLon = Math.min(...lons)
       const maxLon = Math.max(...lons)
       
-      // メッシュサイズを計算（最初のポイントから推定）
-      const avgLat = (minLat + maxLat) / 2
-      const meshSize = 10 // 基本は10m
-      const latOffset = meshSize / 111000
-      const lonOffset = meshSize / (111000 * Math.cos(avgLat * Math.PI / 180))
+      // メッシュサイズを推定（隣接するポイント間の距離から計算）
+      let estimatedMeshSizeM = 10 // デフォルト10m
+      if (treePoints.length > 1) {
+        // 最初の2点間の距離からメッシュサイズを推定
+        const p1 = treePoints[0]
+        const p2 = treePoints[1]
+        const latDist = Math.abs(p1.lat - p2.lat) * 111000
+        const lonDist = Math.abs(p1.lon - p2.lon) * 111000 * Math.cos(p1.lat * Math.PI / 180)
+        estimatedMeshSizeM = Math.max(latDist, lonDist)
+        console.log(`推定メッシュサイズ: ${estimatedMeshSizeM.toFixed(1)}m`)
+      }
       
-      // 白い背景レイヤーを追加（少し大きめに）
+      // 全体の範囲に対して統一されたメッシュサイズを使用
+      const avgLat = (minLat + maxLat) / 2
+      const latStep = estimatedMeshSizeM / 111000
+      const lonStep = estimatedMeshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
+      
+      // 白い背景レイヤーを追加
       const backgroundBounds = [
-        [minLat - latOffset, minLon - lonOffset],
-        [maxLat + latOffset, maxLon + lonOffset]
+        [minLat - latStep * 0.5, minLon - lonStep * 0.5],
+        [maxLat + latStep * 0.5, maxLon + lonStep * 0.5]
       ]
       
       const backgroundLayer = L.rectangle(backgroundBounds, {
-        color: 'rgba(255, 255, 255, 0.95)',
-        weight: 2,
-        opacity: 1,
+        color: 'white',
+        weight: 0,
+        opacity: 0,
         fillColor: 'white',
         fillOpacity: 0.95,
         zIndexOffset: 499
@@ -526,43 +537,38 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       console.log('白い背景レイヤーを追加しました')
 
       treePoints.forEach((point, index) => {
-        const isConiferous = point.tree_type === 'coniferous'
-        
-        // 材積に応じた不透明度を計算（0.3〜1.0の範囲 - 白背景で見やすく）
+        // 材積に応じた不透明度を計算（0.2〜0.95の範囲）
         const volumeRatio = maxVolume > minVolume 
           ? (point.volume - minVolume) / (maxVolume - minVolume)
           : 0.5
-        const opacity = 0.3 + (volumeRatio * 0.7)
+        const opacity = 0.2 + (volumeRatio * 0.75)
         
-        // 樹種に応じた色を設定（はっきり区別できるように）
-        // 針葉樹: 濃い緑（#1b5e20）、広葉樹: オレンジ系（#ff9800）
-        const baseColor = isConiferous ? '#1b5e20' : '#ff9800'
+        // 緑の濃淡のみで表現（針葉樹・広葉樹の区別なし）
+        const baseColor = '#4CAF50'
         
-        // 緯度経度からメッシュの範囲を計算
-        const pointLatOffset = meshSize / 111000
-        const pointLonOffset = meshSize / (111000 * Math.cos(point.lat * Math.PI / 180))
-        
+        // 統一されたメッシュサイズで境界を計算（隙間なし）
         const bounds = [
-          [point.lat - pointLatOffset / 2, point.lon - pointLonOffset / 2],
-          [point.lat + pointLatOffset / 2, point.lon + pointLonOffset / 2]
+          [point.lat - latStep / 2, point.lon - lonStep / 2],
+          [point.lat + latStep / 2, point.lon + lonStep / 2]
         ]
         
-        // 矩形メッシュを作成（境界線なしで隙間をなくす）
+        // 矩形メッシュを作成（境界線なし、隙間なし）
         const mesh = L.rectangle(bounds, {
           color: baseColor,
           weight: 0,
           opacity: 0,
           fillColor: baseColor,
           fillOpacity: opacity,
+          interactive: true,
           zIndexOffset: 500
         })
 
         // ポップアップを追加
-        const treeTypeName = isConiferous ? '針葉樹' : '広葉樹'
-        const icon = isConiferous ? '🌲' : '🌳'
+        const treeTypeName = point.tree_type === 'coniferous' ? '針葉樹' : '広葉樹'
+        const icon = point.tree_type === 'coniferous' ? '🌲' : '🌳'
         mesh.bindPopup(`
           <div style="font-size: 13px;">
-            <strong>${icon} ${treeTypeName}</strong><br/>
+            <strong>🌲 ${treeTypeName}</strong><br/>
             胸高直径: ${point.dbh} cm<br/>
             材積: ${point.volume.toFixed(2)} m³<br/>
             <span style="color: #666; font-size: 11px;">
@@ -1049,64 +1055,27 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
           }}
         >
           <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '13px' }}>
-            🌲 合計材積
-          </div>
-          
-          {/* 針葉樹 */}
-          <div style={{ marginBottom: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-              <div style={{ 
-                width: '16px', 
-                height: '16px', 
-                background: '#1b5e20',
-                border: '1px solid #0d3d10',
-                borderRadius: '2px'
-              }} />
-              <span style={{ fontWeight: 'bold' }}>針葉樹</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#666', marginLeft: '22px' }}>
-              濃い緑色で表示
-            </div>
-          </div>
-          
-          {/* 広葉樹 */}
-          <div style={{ marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-              <div style={{ 
-                width: '16px', 
-                height: '16px', 
-                background: '#ff9800',
-                border: '1px solid #f57c00',
-                borderRadius: '2px'
-              }} />
-              <span style={{ fontWeight: 'bold' }}>広葉樹</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#666', marginLeft: '22px' }}>
-              オレンジ色で表示
-            </div>
+            🌲 材積分布
           </div>
           
           {/* 材積の濃淡 */}
-          <div style={{ 
-            borderTop: '1px solid #ddd', 
-            paddingTop: '8px',
-            marginTop: '8px'
-          }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '4px', fontSize: '11px' }}>
+          <div>
+            <div style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '12px' }}>
               材積の濃淡
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
               <div style={{ 
-                width: '30px', 
-                height: '12px', 
-                background: 'linear-gradient(to right, rgba(27, 94, 32, 0.2), rgba(27, 94, 32, 0.9))',
+                width: '50px', 
+                height: '16px', 
+                background: 'linear-gradient(to right, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.95))',
                 border: '1px solid #ccc',
                 borderRadius: '2px'
               }} />
-              <span style={{ fontSize: '10px', color: '#666' }}>少 → 多</span>
+              <span style={{ fontSize: '11px', color: '#666' }}>少 → 多</span>
             </div>
-            <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>
-              ※色が薄いほど材積が少ない
+            <div style={{ fontSize: '10px', color: '#888', marginTop: '4px', lineHeight: '1.4' }}>
+              ※緑が薄い：材積が少ない<br/>
+              ※緑が濃い：材積が多い
             </div>
           </div>
         </div>
