@@ -691,13 +691,19 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
               [sapporoBounds.max_lat, sapporoBounds.max_lon]
             ]
             
+            // 札幌市用のカスタムペインを作成（z-indexを低く設定）
+            if (!map.getPane('sapporoBackgroundPane')) {
+              const pane = map.createPane('sapporoBackgroundPane')
+              pane.style.zIndex = 350 // overlayPane(400)より低く設定
+            }
+            
             const boundsLayer = L.rectangle(bounds, {
               color: '#FF6B6B',
               weight: 3,
               opacity: 0.8,
               fillColor: 'white',
               fillOpacity: 0.9,
-              pane: 'overlayPane'
+              pane: 'sapporoBackgroundPane'
             }).addTo(map)
             
             boundsLayer.bindPopup(`
@@ -718,6 +724,12 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
           
           console.log(`札幌市のポリゴンを${sapporoFeatures.length}件見つけました`)
           
+          // 札幌市用のカスタムペインを作成（z-indexを低く設定）
+          if (!map.getPane('sapporoBackgroundPane')) {
+            const pane = map.createPane('sapporoBackgroundPane')
+            pane.style.zIndex = 350 // overlayPane(400)より低く設定
+          }
+          
           // GeoJSONレイヤーを作成
           const sapporoLayer = L.geoJSON({
             type: 'FeatureCollection',
@@ -730,7 +742,7 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
               fillColor: 'white',
               fillOpacity: 0.9
             },
-            pane: 'overlayPane'
+            pane: 'sapporoBackgroundPane'
           }).addTo(map)
           
           // ポップアップを追加
