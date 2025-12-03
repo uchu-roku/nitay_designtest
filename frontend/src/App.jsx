@@ -62,8 +62,8 @@ function generateMockAnalysis(requestData) {
   // グリッド状にメッシュを生成（範囲を埋め尽くす）
   const treePoints = []
   
-  // メッシュサイズを動的に調整（最大20000メッシュまで）
-  const maxMeshes = 20000
+  // メッシュサイズを動的に調整（最大50000メッシュまで）
+  const maxMeshes = 50000
   let meshSizeM = 10 // 基本は10m四方
   
   // 仮のグリッド数を計算
@@ -383,29 +383,8 @@ function App() {
         
         // 3. 解析中メッセージ
         await new Promise(resolve => setTimeout(resolve, 1500))
-        // 札幌市の大まかな座標範囲
-        const sapporoBounds = {
-          min_lat: 42.9,
-          min_lon: 141.1,
-          max_lat: 43.2,
-          max_lon: 141.6
-        }
         
-        // 札幌市全体の面積（約1,121 km²）
-        const areaKm2 = 1121
-        
-        // 樹木密度（1km²あたり800-1500本）
-        const treesPerKm2 = Math.floor(Math.random() * 700) + 800
-        const treeCount = Math.floor(areaKm2 * treesPerKm2)
-        
-        // 材積（1本あたり0.3-0.8m³）
-        const volumePerTree = Math.random() * 0.5 + 0.3
-        const totalVolume = treeCount * volumePerTree
-        
-        // 札幌市の行政区域ポリゴンを読み込んで、その範囲内にグリッドメッシュを生成
-        let treePoints = []
-        let sapporoPolygonCoords = null
-        
+        // 札幌市の行政区域ポリゴンを読み込む
         try {
           const baseUrl = import.meta.env.BASE_URL || '/'
           const adminUrl = `${baseUrl}data/administrative/admin_simple.geojson`
@@ -448,51 +427,62 @@ function App() {
             
             console.log('札幌市の全ポリゴン数:', allPolygons.length)
             
-            // 他の解析と同じ方法で、1回のgenerateMockAnalysis呼び出しで処理
-            // 複数ポリゴンを配列として渡す
-            const mockAnalysisData = generateMockAnalysis({
-              bbox: sapporoBounds,
+            // 札幌市全体のbboxを計算
+            let minLat = Infinity, maxLat = -Infinity
+            let minLon = Infinity, maxLon = -Infinity
+            
+            allPolygons.forEach(polygon => {
+              polygon.forEach(coord => {
+                minLat = Math.min(minLat, coord.lat)
+                maxLat = Math.max(maxLat, coord.lat)
+                minLon = Math.min(minLon, coord.lon)
+                maxLon = Math.max(maxLon, coord.lon)
+              })
+            })
+            
+            console.log('札幌市のbbox:', { minLat, maxLat, minLon, maxLon })
+            
+            // 他の解析と同じ方法で、generateMockAnalysisを直接呼び出す
+            const mockResult = generateMockAnalysis({
+              bbox: {
+                min_lat: minLat,
+                max_lat: maxLat,
+                min_lon: minLon,
+                max_lon: maxLon
+              },
               polygon_coords: allPolygons, // 複数ポリゴンの配列を渡す
               is_multi_polygon: true // 複数ポリゴンであることを示すフラグ
             })
             
-            treePoints = mockAnalysisData.tree_points
-            console.log('生成されたメッシュ数:', treePoints.length)
+            // 札幌市の範囲情報を追加
+            mockResult.sapporo_bounds = {
+              min_lat: minLat,
+              max_lat: maxLat,
+              min_lon: minLon,
+              max_lon: maxLon
+            }
             
-            // 最初のポリゴンを代表として保存（境界線表示用）
-            sapporoPolygonCoords = allPolygons[0]
+            // 結果を設定
+            setResult(mockResult)
+            
+            // 4. 最終結果を表示
+            setChatMessages(prev => {
+              const newMessages = [...prev]
+              newMessages[newMessages.length - 1] = {
+                role: 'assistant',
+                content: `札幌市全体の材積を解析しました。\n\n検出本数: ${mockResult.tree_count.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n地図上に札幌市の行政区域と材積分布のグリッドメッシュを表示しました。`
+              }
+              return newMessages
+            })
           }
         } catch (err) {
           console.error('札幌市ポリゴンデータの読み込みエラー:', err)
-        }
-        
-        const mockResult = {
-          tree_count: treeCount,
-          volume_m3: Math.round(totalVolume * 100) / 100,
-          confidence: 'medium',
-          warnings: [
-            '解析面積: 1,121 km²（札幌市全体）',
-            '対象地域: 札幌市（主に南区の森林地帯）',
-            `※ 検出本数: ${treeCount.toLocaleString()}本`,
-            `※ 地図表示: ${treePoints.length}個のメッシュ`,
-            '※MVP版: チャットボット解析のシミュレーションです',
-            '※本格運用時はChatGPT APIを使用します'
-          ],
-          tree_points: treePoints,
-          polygon_coords: sapporoPolygonCoords, // 札幌市のポリゴン座標を追加
-          sapporo_bounds: sapporoBounds // 札幌市の範囲を追加
-        }
-        
-        // 4. 最終結果を表示
-        setResult(mockResult)
-        setChatMessages(prev => {
-          const newMessages = [...prev]
-          newMessages[newMessages.length - 1] = {
+          setChatMessages(prev => [...prev, {
             role: 'assistant',
-            content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。地図上に札幌市の行政区域と材積分布のグリッドメッシュを表示しました。`
-          }
-          return newMessages
-        })
+            content: 'エラーが発生しました。札幌市のデータを読み込めませんでした。'
+          }])
+        }
+        
         setAnalyzing(false)
       })()
     } else {
