@@ -1169,6 +1169,7 @@ function App() {
           mode={mode}
           onClearResults={handleClearResults}
           onImageLoaded={handleImageLoaded}
+          isMultiPolygon={result?.is_multi_polygon || false}
         />
       </div>
     </div>
