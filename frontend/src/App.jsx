@@ -462,6 +462,9 @@ function App() {
               max_lon: maxLon
             }
             
+            // 複数ポリゴンの座標を追加（Map.jsxで白い背景を表示するため）
+            mockResult.polygon_coords = allPolygons
+            
             // 結果を設定
             setResult(mockResult)
             

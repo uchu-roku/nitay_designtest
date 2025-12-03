@@ -521,17 +521,40 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       let backgroundLayer
       if (polygonCoords && polygonCoords.length > 0) {
         // ポリゴンが指定されている場合はポリゴン形状の背景
-        const polygonLatLngs = polygonCoords.map(coord => [coord.lat, coord.lon || coord.lng])
-        console.log('ポリゴン形状の白い背景を作成:', polygonLatLngs.length, '頂点')
+        // 複数ポリゴン（配列の配列）かどうかをチェック
+        const isMultiPolygon = Array.isArray(polygonCoords[0]) && 
+                               Array.isArray(polygonCoords[0][0]) && 
+                               polygonCoords[0][0].lat !== undefined
         
-        backgroundLayer = L.polygon(polygonLatLngs, {
-          color: 'white',
-          weight: 0,
-          opacity: 0,
-          fillColor: 'white',
-          fillOpacity: 0.9,
-          zIndexOffset: 499
-        })
+        if (isMultiPolygon) {
+          // 複数ポリゴンの場合
+          console.log('複数ポリゴン形状の白い背景を作成:', polygonCoords.length, '個のポリゴン')
+          const allPolygonLatLngs = polygonCoords.map(polygon => 
+            polygon.map(coord => [coord.lat, coord.lon || coord.lng])
+          )
+          
+          backgroundLayer = L.polygon(allPolygonLatLngs, {
+            color: 'white',
+            weight: 0,
+            opacity: 0,
+            fillColor: 'white',
+            fillOpacity: 0.9,
+            zIndexOffset: 499
+          })
+        } else {
+          // 単一ポリゴンの場合
+          const polygonLatLngs = polygonCoords.map(coord => [coord.lat, coord.lon || coord.lng])
+          console.log('ポリゴン形状の白い背景を作成:', polygonLatLngs.length, '頂点')
+          
+          backgroundLayer = L.polygon(polygonLatLngs, {
+            color: 'white',
+            weight: 0,
+            opacity: 0,
+            fillColor: 'white',
+            fillOpacity: 0.9,
+            zIndexOffset: 499
+          })
+        }
       } else {
         // ポリゴンがない場合は矩形の背景
         const backgroundBounds = [
