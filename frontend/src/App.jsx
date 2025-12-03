@@ -134,10 +134,9 @@ function generateMockAnalysis(requestData) {
         const volumeNoise = noise2D(i, j, seed)
         const volume = 0.1 + volumeNoise * 1.4
         
-        // 樹種もノイズ関数で決定（針葉樹75%、広葉樹25%）
-        // 地域的な偏りを持たせつつ、基本的に針葉樹が多い
-        const treeTypeNoise = noise2D(i * 0.3, j * 0.3, seed * 0.7)
-        const treeType = treeTypeNoise > 0.25 ? 'coniferous' : 'broadleaf'
+        // 樹種を決定（針葉樹80%、広葉樹20%）
+        // ランダム関数を使用して確実に20%を広葉樹にする
+        const treeType = Math.random() > 0.2 ? 'coniferous' : 'broadleaf'
         
         // 胸高直径は材積に比例
         const dbh = 15 + volumeNoise * 30
