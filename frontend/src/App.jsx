@@ -377,8 +377,9 @@ function App() {
         const volumePerTree = Math.random() * 0.5 + 0.3
         const totalVolume = treeCount * volumePerTree
         
-        // 札幌市の行政区域ポリゴンを読み込んで樹木位置を生成
-        const treePoints = []
+        // 札幌市の行政区域ポリゴンを読み込んで、その範囲内にグリッドメッシュを生成
+        let treePoints = []
+        let sapporoPolygonCoords = null
         
         try {
           const baseUrl = import.meta.env.BASE_URL || '/'
@@ -386,7 +387,7 @@ function App() {
           const response = await fetch(adminUrl)
           const data = await response.json()
           
-          // 札幌市のポリゴンを抽出（特に南区を優先）
+          // 札幌市のポリゴンを抽出
           const sapporoFeatures = data.features.filter(feature => {
             const city = feature.properties.N03_004 || ''
             const ward = feature.properties.N03_005 || ''
@@ -397,137 +398,36 @@ function App() {
                    ward.includes('清田')
           })
           
-          // 南区のポリゴンを特定
-          const minamiWardFeatures = sapporoFeatures.filter(feature => {
-            const ward = feature.properties.N03_005 || ''
-            return ward.includes('南区')
-          })
-          
           console.log('札幌市のフィーチャー:', sapporoFeatures.length)
-          console.log('南区のフィーチャー:', minamiWardFeatures.length)
           
-          // ポリゴン座標を抽出
-          const allPolygons = []
-          const minamiPolygons = []
-          
-          sapporoFeatures.forEach(feature => {
-            if (feature.geometry.type === 'Polygon') {
-              const coords = feature.geometry.coordinates[0].map(coord => [coord[0], coord[1]])
-              allPolygons.push(coords)
-              
-              const ward = feature.properties.N03_005 || ''
-              if (ward.includes('南区')) {
-                minamiPolygons.push(coords)
-              }
-            } else if (feature.geometry.type === 'MultiPolygon') {
-              feature.geometry.coordinates.forEach(polygon => {
-                const coords = polygon[0].map(coord => [coord[0], coord[1]])
-                allPolygons.push(coords)
-                
-                const ward = feature.properties.N03_005 || ''
-                if (ward.includes('南区')) {
-                  minamiPolygons.push(coords)
-                }
-              })
-            }
-          })
-          
-          console.log('全ポリゴン数:', allPolygons.length)
-          console.log('南区ポリゴン数:', minamiPolygons.length)
-          
-          // 樹木を生成（南区に70%、その他に30%）
-          const minamiTreeCount = 70
-          let attempts = 0
-          const maxAttempts = 5000 // 最大試行回数を減らして処理を軽量化
-          
-          // 南区に樹木を配置
-          while (treePoints.length < minamiTreeCount && attempts < maxAttempts) {
-            attempts++
-            
-            const lat = sapporoBounds.min_lat + Math.random() * (sapporoBounds.max_lat - sapporoBounds.min_lat)
-            const lon = sapporoBounds.min_lon + Math.random() * (sapporoBounds.max_lon - sapporoBounds.min_lon)
-            
-            // 南区のポリゴン内かチェック
-            let inMinami = false
-            for (const polygon of minamiPolygons) {
-              if (isPointInPolygon([lon, lat], polygon)) {
-                inMinami = true
-                break
-              }
+          if (sapporoFeatures.length > 0) {
+            // ポリゴン座標を抽出（最初のポリゴンを使用）
+            const firstFeature = sapporoFeatures[0]
+            if (firstFeature.geometry.type === 'Polygon') {
+              sapporoPolygonCoords = firstFeature.geometry.coordinates[0].map(coord => ({
+                lat: coord[1],
+                lon: coord[0]
+              }))
+            } else if (firstFeature.geometry.type === 'MultiPolygon') {
+              sapporoPolygonCoords = firstFeature.geometry.coordinates[0][0].map(coord => ({
+                lat: coord[1],
+                lon: coord[0]
+              }))
             }
             
-            if (inMinami) {
-              const treeType = Math.random() < 0.6 ? 'coniferous' : 'broadleaf'
-              const dbh = Math.random() * 30 + 15
-              const volume = Math.random() * 1.0 + 0.2
-              
-              treePoints.push({
-                lat,
-                lon,
-                tree_type: treeType,
-                dbh: Math.round(dbh * 10) / 10,
-                volume: Math.round(volume * 1000) / 1000
-              })
-            }
-          }
-          
-          console.log('南区に配置した樹木:', treePoints.length)
-          
-          // その他の区に樹木を配置
-          attempts = 0
-          while (treePoints.length < 100 && attempts < maxAttempts) {
-            attempts++
+            console.log('札幌市ポリゴン座標:', sapporoPolygonCoords?.length, '頂点')
             
-            const lat = sapporoBounds.min_lat + Math.random() * (sapporoBounds.max_lat - sapporoBounds.min_lat)
-            const lon = sapporoBounds.min_lon + Math.random() * (sapporoBounds.max_lon - sapporoBounds.min_lon)
-            
-            // 札幌市のポリゴン内かチェック
-            let inSapporo = false
-            for (const polygon of allPolygons) {
-              if (isPointInPolygon([lon, lat], polygon)) {
-                inSapporo = true
-                break
-              }
-            }
-            
-            if (inSapporo) {
-              const treeType = Math.random() < 0.6 ? 'coniferous' : 'broadleaf'
-              const dbh = Math.random() * 30 + 15
-              const volume = Math.random() * 1.0 + 0.2
-              
-              treePoints.push({
-                lat,
-                lon,
-                tree_type: treeType,
-                dbh: Math.round(dbh * 10) / 10,
-                volume: Math.round(volume * 1000) / 1000
-              })
-            }
-          }
-          
-          console.log('合計配置した樹木:', treePoints.length)
-          
-        } catch (err) {
-          console.error('ポリゴンデータの読み込みエラー:', err)
-          // エラー時は簡易的に中心部に配置
-          const centerLat = (sapporoBounds.min_lat + sapporoBounds.max_lat) / 2
-          const centerLon = (sapporoBounds.min_lon + sapporoBounds.max_lon) / 2
-          
-          for (let i = 0; i < 100; i++) {
-            const lat = centerLat + (Math.random() - 0.5) * 0.2
-            const lon = centerLon + (Math.random() - 0.5) * 0.3
-            const treeType = Math.random() < 0.6 ? 'coniferous' : 'broadleaf'
-            const dbh = Math.random() * 30 + 15
-            const volume = Math.random() * 1.0 + 0.2
-            
-            treePoints.push({
-              lat,
-              lon,
-              tree_type: treeType,
-              dbh: Math.round(dbh * 10) / 10,
-              volume: Math.round(volume * 1000) / 1000
+            // generateMockAnalysisを使用してグリッドメッシュを生成
+            const mockAnalysisData = generateMockAnalysis({
+              bbox: sapporoBounds,
+              polygon_coords: sapporoPolygonCoords
             })
+            
+            treePoints = mockAnalysisData.tree_points
+            console.log('生成されたメッシュ数:', treePoints.length)
           }
+        } catch (err) {
+          console.error('札幌市ポリゴンデータの読み込みエラー:', err)
         }
         
         const mockResult = {
@@ -538,11 +438,12 @@ function App() {
             '解析面積: 1,121 km²（札幌市全体）',
             '対象地域: 札幌市（主に南区の森林地帯）',
             `※ 検出本数: ${treeCount.toLocaleString()}本`,
-            `※ 地図表示: ${treePoints.length}個のサンプル点`,
+            `※ 地図表示: ${treePoints.length}個のメッシュ`,
             '※MVP版: チャットボット解析のシミュレーションです',
             '※本格運用時はChatGPT APIを使用します'
           ],
           tree_points: treePoints,
+          polygon_coords: sapporoPolygonCoords, // 札幌市のポリゴン座標を追加
           sapporo_bounds: sapporoBounds // 札幌市の範囲を追加
         }
         
@@ -552,7 +453,7 @@ function App() {
           const newMessages = [...prev]
           newMessages[newMessages.length - 1] = {
             role: 'assistant',
-            content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。地図上に樹木位置と札幌市の範囲を表示しました。`
+            content: `札幌市全体の材積を解析しました。\n\n検出本数: ${treeCount.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n解析面積は約1,121 km²です。地図上に札幌市の行政区域と材積分布のグリッドメッシュを表示しました。`
           }
           return newMessages
         })
