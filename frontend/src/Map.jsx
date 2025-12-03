@@ -695,8 +695,8 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
               color: '#FF6B6B',
               weight: 3,
               opacity: 0.8,
-              fillColor: '#FF6B6B',
-              fillOpacity: 0.2,
+              fillColor: 'white',
+              fillOpacity: 0.9,
               pane: 'overlayPane'
             }).addTo(map)
             
@@ -727,8 +727,8 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
               color: '#FF6B6B',
               weight: 3,
               opacity: 0.8,
-              fillColor: '#FF6B6B',
-              fillOpacity: 0.2
+              fillColor: 'white',
+              fillOpacity: 0.9
             },
             pane: 'overlayPane'
           }).addTo(map)
