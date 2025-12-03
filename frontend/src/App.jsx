@@ -62,8 +62,8 @@ function generateMockAnalysis(requestData) {
   // グリッド状にメッシュを生成（範囲を埋め尽くす）
   const treePoints = []
   
-  // メッシュサイズを動的に調整（最大50000メッシュまで）
-  const maxMeshes = 50000
+  // メッシュサイズを動的に調整（最大5000メッシュまで）
+  const maxMeshes = 5000
   let meshSizeM = 10 // 基本は10m四方
   
   // 仮のグリッド数を計算

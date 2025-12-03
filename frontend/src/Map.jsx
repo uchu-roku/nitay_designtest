@@ -523,21 +523,21 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
         // ポリゴンが指定されている場合はポリゴン形状の背景
         // 複数ポリゴン（配列の配列）かどうかをチェック
         // polygonCoords[0]が配列で、その最初の要素がオブジェクト（{lat, lon}）なら複数ポリゴン
-        const isMultiPolygon = Array.isArray(polygonCoords[0]) && 
-                               polygonCoords[0].length > 0 &&
-                               typeof polygonCoords[0][0] === 'object' &&
-                               polygonCoords[0][0].lat !== undefined
+        const isMultiPolygonDetected = Array.isArray(polygonCoords[0]) && 
+                                       polygonCoords[0].length > 0 &&
+                                       typeof polygonCoords[0][0] === 'object' &&
+                                       polygonCoords[0][0].lat !== undefined
         
         console.log('ポリゴン座標の構造チェック:', {
           isArray: Array.isArray(polygonCoords),
           length: polygonCoords.length,
           firstElement: polygonCoords[0],
-          isMultiPolygonDetected: isMultiPolygon,
+          isMultiPolygonDetected: isMultiPolygonDetected,
           isMultiPolygonProp: isMultiPolygon
         })
         
         // propsから渡されたisMultiPolygonフラグまたは自動検出を使用
-        const useMultiPolygon = isMultiPolygon || isMultiPolygon
+        const useMultiPolygon = isMultiPolygon || isMultiPolygonDetected
         
         if (useMultiPolygon) {
           // 複数ポリゴンの場合
