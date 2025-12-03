@@ -25,7 +25,7 @@ function isPointInPolygon(point, polygon) {
 
 // MVP版: フロントエンドのみで簡易解析を実行
 function generateMockAnalysis(requestData) {
-  const { bbox, polygon_coords, forest_registry_id } = requestData
+  const { bbox, polygon_coords, forest_registry_id, is_multi_polygon } = requestData
   
   // 面積を計算（簡易版）
   const latDiff = bbox.max_lat - bbox.min_lat
@@ -43,16 +43,27 @@ function generateMockAnalysis(requestData) {
   
   // ポリゴン座標を変換（ある場合）
   let polygon = null
+  let multiPolygons = null
+  
   if (polygon_coords && polygon_coords.length > 0) {
-    polygon = polygon_coords.map(coord => [coord.lon || coord.lng, coord.lat])
-    console.log('ポリゴン判定を使用:', polygon.length, '頂点')
+    if (is_multi_polygon) {
+      // 複数ポリゴンの場合（札幌市全体など）
+      multiPolygons = polygon_coords.map(polyCoords => 
+        polyCoords.map(coord => [coord.lon || coord.lng, coord.lat])
+      )
+      console.log('複数ポリゴン判定を使用:', multiPolygons.length, '個のポリゴン')
+    } else {
+      // 単一ポリゴンの場合
+      polygon = polygon_coords.map(coord => [coord.lon || coord.lng, coord.lat])
+      console.log('ポリゴン判定を使用:', polygon.length, '頂点')
+    }
   }
   
   // グリッド状にメッシュを生成（範囲を埋め尽くす）
   const treePoints = []
   
-  // メッシュサイズを動的に調整（最大5000メッシュまで）
-  const maxMeshes = 5000
+  // メッシュサイズを動的に調整（最大20000メッシュまで）
+  const maxMeshes = 20000
   let meshSizeM = 10 // 基本は10m四方
   
   // 仮のグリッド数を計算
@@ -78,17 +89,17 @@ function generateMockAnalysis(requestData) {
   
   // 自然な森林分布を模倣するノイズ関数（複数のスケールを組み合わせ）
   const noise2D = (x, y, seed) => {
-    // 大きなスケールのノイズ（全体的な傾向）
-    const large = Math.sin(x * 0.05 + seed) * Math.cos(y * 0.05 + seed * 1.3) * 0.5 + 0.5
+    // 大きなスケールのノイズ（全体的な傾向）- より滑らかに
+    const large = Math.sin(x * 0.02 + seed) * Math.cos(y * 0.02 + seed * 1.3) * 0.5 + 0.5
     // 中程度のスケールのノイズ（林分の違い）
-    const medium = Math.sin(x * 0.2 + seed * 2) * Math.cos(y * 0.2 + seed * 2.5) * 0.5 + 0.5
+    const medium = Math.sin(x * 0.1 + seed * 2) * Math.cos(y * 0.1 + seed * 2.5) * 0.5 + 0.5
     // 小さなスケールのノイズ（個体差）
-    const small = Math.sin(x * 0.8 + seed * 3) * Math.cos(y * 0.8 + seed * 3.7) * 0.5 + 0.5
+    const small = Math.sin(x * 0.4 + seed * 3) * Math.cos(y * 0.4 + seed * 3.7) * 0.5 + 0.5
     // ランダムノイズ
     const random = Math.random()
     
-    // 組み合わせ（大きなスケールを重視しつつ、ランダム性も加える）
-    return large * 0.4 + medium * 0.3 + small * 0.2 + random * 0.1
+    // 組み合わせ（大きなスケールを重視して滑らかなグラデーションに）
+    return large * 0.5 + medium * 0.3 + small * 0.15 + random * 0.05
   }
   
   const seed = Math.random() * 100
@@ -103,6 +114,20 @@ function generateMockAnalysis(requestData) {
         // ポリゴンが指定されている場合は範囲内チェック
         if (polygon && !isPointInPolygon([lon, lat], polygon)) {
           continue
+        }
+        
+        // 複数ポリゴンが指定されている場合は、いずれかのポリゴン内かチェック
+        if (multiPolygons) {
+          let inAnyPolygon = false
+          for (const poly of multiPolygons) {
+            if (isPointInPolygon([lon, lat], poly)) {
+              inAnyPolygon = true
+              break
+            }
+          }
+          if (!inAnyPolygon) {
+            continue
+          }
         }
         
         // ノイズ関数で材積を決定（グラデーション + ランダム性）
@@ -423,20 +448,16 @@ function App() {
             
             console.log('札幌市の全ポリゴン数:', allPolygons.length)
             
-            // 各ポリゴンに対してグリッドメッシュを生成し、結合
-            allPolygons.forEach((polygonCoords, index) => {
-              console.log(`ポリゴン${index + 1}/${allPolygons.length}のメッシュを生成中...`)
-              
-              const mockAnalysisData = generateMockAnalysis({
-                bbox: sapporoBounds,
-                polygon_coords: polygonCoords
-              })
-              
-              // 生成されたメッシュを追加
-              treePoints = treePoints.concat(mockAnalysisData.tree_points)
+            // 他の解析と同じ方法で、1回のgenerateMockAnalysis呼び出しで処理
+            // 複数ポリゴンを配列として渡す
+            const mockAnalysisData = generateMockAnalysis({
+              bbox: sapporoBounds,
+              polygon_coords: allPolygons, // 複数ポリゴンの配列を渡す
+              is_multi_polygon: true // 複数ポリゴンであることを示すフラグ
             })
             
-            console.log('全ポリゴンの合計メッシュ数:', treePoints.length)
+            treePoints = mockAnalysisData.tree_points
+            console.log('生成されたメッシュ数:', treePoints.length)
             
             // 最初のポリゴンを代表として保存（境界線表示用）
             sapporoPolygonCoords = allPolygons[0]
