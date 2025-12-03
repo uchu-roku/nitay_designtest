@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints, polygonCoords, sapporoBounds, mode, onClearResults, onImageLoaded }) {
+function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints, polygonCoords, sapporoBounds, mode, onClearResults, onImageLoaded, isMultiPolygon }) {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
   const imageLayerRef = useRef(null)
@@ -522,11 +522,24 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
       if (polygonCoords && polygonCoords.length > 0) {
         // ポリゴンが指定されている場合はポリゴン形状の背景
         // 複数ポリゴン（配列の配列）かどうかをチェック
+        // polygonCoords[0]が配列で、その最初の要素がオブジェクト（{lat, lon}）なら複数ポリゴン
         const isMultiPolygon = Array.isArray(polygonCoords[0]) && 
-                               Array.isArray(polygonCoords[0][0]) && 
+                               polygonCoords[0].length > 0 &&
+                               typeof polygonCoords[0][0] === 'object' &&
                                polygonCoords[0][0].lat !== undefined
         
-        if (isMultiPolygon) {
+        console.log('ポリゴン座標の構造チェック:', {
+          isArray: Array.isArray(polygonCoords),
+          length: polygonCoords.length,
+          firstElement: polygonCoords[0],
+          isMultiPolygonDetected: isMultiPolygon,
+          isMultiPolygonProp: isMultiPolygon
+        })
+        
+        // propsから渡されたisMultiPolygonフラグまたは自動検出を使用
+        const useMultiPolygon = isMultiPolygon || isMultiPolygon
+        
+        if (useMultiPolygon) {
           // 複数ポリゴンの場合
           console.log('複数ポリゴン形状の白い背景を作成:', polygonCoords.length, '個のポリゴン')
           const allPolygonLatLngs = polygonCoords.map(polygon => 
