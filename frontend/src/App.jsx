@@ -401,30 +401,45 @@ function App() {
           console.log('札幌市のフィーチャー:', sapporoFeatures.length)
           
           if (sapporoFeatures.length > 0) {
-            // ポリゴン座標を抽出（最初のポリゴンを使用）
-            const firstFeature = sapporoFeatures[0]
-            if (firstFeature.geometry.type === 'Polygon') {
-              sapporoPolygonCoords = firstFeature.geometry.coordinates[0].map(coord => ({
-                lat: coord[1],
-                lon: coord[0]
-              }))
-            } else if (firstFeature.geometry.type === 'MultiPolygon') {
-              sapporoPolygonCoords = firstFeature.geometry.coordinates[0][0].map(coord => ({
-                lat: coord[1],
-                lon: coord[0]
-              }))
-            }
-            
-            console.log('札幌市ポリゴン座標:', sapporoPolygonCoords?.length, '頂点')
-            
-            // generateMockAnalysisを使用してグリッドメッシュを生成
-            const mockAnalysisData = generateMockAnalysis({
-              bbox: sapporoBounds,
-              polygon_coords: sapporoPolygonCoords
+            // 全ての区のポリゴンを抽出して配列に格納
+            const allPolygons = []
+            sapporoFeatures.forEach(feature => {
+              if (feature.geometry.type === 'Polygon') {
+                const coords = feature.geometry.coordinates[0].map(coord => ({
+                  lat: coord[1],
+                  lon: coord[0]
+                }))
+                allPolygons.push(coords)
+              } else if (feature.geometry.type === 'MultiPolygon') {
+                feature.geometry.coordinates.forEach(polygon => {
+                  const coords = polygon[0].map(coord => ({
+                    lat: coord[1],
+                    lon: coord[0]
+                  }))
+                  allPolygons.push(coords)
+                })
+              }
             })
             
-            treePoints = mockAnalysisData.tree_points
-            console.log('生成されたメッシュ数:', treePoints.length)
+            console.log('札幌市の全ポリゴン数:', allPolygons.length)
+            
+            // 各ポリゴンに対してグリッドメッシュを生成し、結合
+            allPolygons.forEach((polygonCoords, index) => {
+              console.log(`ポリゴン${index + 1}/${allPolygons.length}のメッシュを生成中...`)
+              
+              const mockAnalysisData = generateMockAnalysis({
+                bbox: sapporoBounds,
+                polygon_coords: polygonCoords
+              })
+              
+              // 生成されたメッシュを追加
+              treePoints = treePoints.concat(mockAnalysisData.tree_points)
+            })
+            
+            console.log('全ポリゴンの合計メッシュ数:', treePoints.length)
+            
+            // 最初のポリゴンを代表として保存（境界線表示用）
+            sapporoPolygonCoords = allPolygons[0]
           }
         } catch (err) {
           console.error('札幌市ポリゴンデータの読み込みエラー:', err)
