@@ -627,87 +627,80 @@ function App() {
       <div className="sidebar">
         <h1>材積予測アプリ</h1>
         
-        <div className="section">
-          <h2>解析モード選択</h2>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
-            <button
-              onClick={() => setMode('map')}
-              style={{
-                flex: 1,
-                padding: '10px',
-                background: mode === 'map' ? '#2c5f2d' : '#ddd',
-                color: mode === 'map' ? 'white' : '#333',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: mode === 'map' ? 'bold' : 'normal',
-                fontSize: '12px'
-              }}
-            >
-              A: 地図から解析
-            </button>
-            <button
-              onClick={() => setMode('upload')}
-              style={{
-                flex: 1,
-                padding: '10px',
-                background: mode === 'upload' ? '#2c5f2d' : '#ddd',
-                color: mode === 'upload' ? 'white' : '#333',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: mode === 'upload' ? 'bold' : 'normal',
-                fontSize: '12px'
-              }}
-            >
-              B: 画像から解析
-            </button>
-            <button
-              onClick={() => setMode('chatbot')}
-              style={{
-                flex: 1,
-                padding: '10px',
-                background: mode === 'chatbot' ? '#2c5f2d' : '#ddd',
-                color: mode === 'chatbot' ? 'white' : '#333',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: mode === 'chatbot' ? 'bold' : 'normal',
-                fontSize: '12px'
-              }}
-            >
-              C: チャットボット
-            </button>
-          </div>
-          <p className="instruction" style={{ fontSize: '13px', color: '#666' }}>
-            {mode === 'map' 
-              ? '地図上で範囲を指定、または森林簿レイヤーから小班を選択'
-              : mode === 'upload'
-              ? '画像をアップロードして範囲を指定、または森林簿レイヤーから小班を選択'
-              : 'AIとやり取りしながら解析を実行'}
-          </p>
-          {mode !== 'chatbot' && (
-            <div style={{
-              background: '#fff3cd',
-              padding: '12px',
-              borderRadius: '4px',
-              marginTop: '10px',
+        {/* タブ形式のモード選択 */}
+        <div style={{ 
+          display: 'flex', 
+          background: 'white',
+          borderBottom: '1px solid #ddd'
+        }}>
+          <button
+            onClick={() => setMode('map')}
+            style={{
+              flex: 1,
+              padding: '12px 8px',
+              background: mode === 'map' ? '#2c5f2d' : 'white',
+              color: mode === 'map' ? 'white' : '#666',
+              border: 'none',
+              borderBottom: mode === 'map' ? 'none' : '1px solid #ddd',
+              cursor: 'pointer',
+              fontWeight: mode === 'map' ? 'bold' : 'normal',
               fontSize: '12px',
-              border: '1px solid #ffc107'
-            }}>
-              <strong style={{ color: '#856404' }}>💡 ヒント</strong>
-              <p style={{ marginTop: '8px', marginBottom: 0, color: '#856404', lineHeight: '1.6' }}>
-                {mode === 'map' 
-                  ? '地図上で矩形/ポリゴンを描画するか、「📋 森林簿」ボタンをONにして林班・小班をクリックできます。'
-                  : '画像をアップロード後、矩形/ポリゴンを描画するか、「📋 森林簿」ボタンをONにして林班・小班をクリックできます。'}
-              </p>
-            </div>
-          )}
+              transition: 'all 0.2s'
+            }}
+          >
+            A: 地図から解析
+          </button>
+          <button
+            onClick={() => setMode('upload')}
+            style={{
+              flex: 1,
+              padding: '12px 8px',
+              background: mode === 'upload' ? '#2c5f2d' : 'white',
+              color: mode === 'upload' ? 'white' : '#666',
+              border: 'none',
+              borderBottom: mode === 'upload' ? 'none' : '1px solid #ddd',
+              cursor: 'pointer',
+              fontWeight: mode === 'upload' ? 'bold' : 'normal',
+              fontSize: '12px',
+              transition: 'all 0.2s'
+            }}
+          >
+            B: 画像から解析
+          </button>
+          <button
+            onClick={() => setMode('chatbot')}
+            style={{
+              flex: 1,
+              padding: '12px 8px',
+              background: mode === 'chatbot' ? '#2c5f2d' : 'white',
+              color: mode === 'chatbot' ? 'white' : '#666',
+              border: 'none',
+              borderBottom: mode === 'chatbot' ? 'none' : '1px solid #ddd',
+              cursor: 'pointer',
+              fontWeight: mode === 'chatbot' ? 'bold' : 'normal',
+              fontSize: '12px',
+              transition: 'all 0.2s'
+            }}
+          >
+            C: チャットボット
+          </button>
         </div>
 
-        {mode === 'chatbot' && (
+        <div className="sidebar-content">
           <div className="section">
-            <h2>チャットボット解析</h2>
+            <h2>範囲を指定</h2>
+            <p className="instruction" style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
+              矩形/ポリゴンを描画、または森林簿から小班を選択
+            </p>
+            <p className="instruction" style={{ fontSize: '11px', color: '#888', marginTop: '5px', lineHeight: '1.5' }}>
+              ▭ 矩形: ドラッグで描画<br />
+              ⬡ ポリゴン: クリックで頂点追加、ダブルクリックで完了
+            </p>
+          </div>
+
+          {mode === 'chatbot' && (
+            <div className="section">
+              <h2>チャットボット解析</h2>
             <div style={{
               background: '#e3f2fd',
               padding: '12px',
@@ -868,14 +861,13 @@ function App() {
               >
                 {analyzing ? '⏳' : '送信'}
               </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {mode === 'upload' && (
-          <>
+          {mode === 'upload' && (
             <div className="section">
-              <h2>1. 画像アップロード</h2>
+              <h2>画像アップロード</h2>
               
               {/* 画像品質の注意事項 */}
               <div style={{
@@ -1065,94 +1057,111 @@ function App() {
                 </>
               )}
             </div>
-          </>
-        )}
+          )}
 
-        {mode !== 'chatbot' && (
-          <div className="section">
-            <h2>{mode === 'upload' ? '2. ' : ''}範囲を指定</h2>
-            <p className="instruction">
-              矩形/ポリゴンを描画、または森林簿から小班を選択
-            </p>
-            <p className="instruction" style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>
-              ▭ 矩形: ドラッグで描画<br />
-              ⬡ ポリゴン: クリックで頂点追加、ダブルクリックで完了<br />
-              📋 森林簿: ボタンをONにして小班をクリック
-            </p>
-          </div>
-        )}
+          {analyzing && (
+            <div className="section">
+              <p className="status" style={{ textAlign: 'center', fontSize: '14px', color: '#2c5f2d' }}>
+                ⏳ 解析中...
+              </p>
+            </div>
+          )}
 
-        {analyzing && (
-          <div className="section">
-            <p className="status">解析中...</p>
-          </div>
-        )}
-
-        {result && (
+          {result && (
           <div className="section result">
             <h2>解析結果</h2>
-            {forestRegistryId && (
-              <div style={{
-                background: '#f4e4d7',
-                padding: '10px',
-                borderRadius: '4px',
-                marginBottom: '12px',
-                fontSize: '12px',
-                border: '1px solid #8B4513'
-              }}>
-                <strong style={{ color: '#5d2e0f' }}>📋 対象小班</strong>
-                <p style={{ marginTop: '5px', marginBottom: 0, color: '#5d2e0f' }}>
-                  {forestRegistryId}
-                </p>
-              </div>
-            )}
             <div className="result-item">
               <span className="label">検出本数:</span>
-              <span className="value">{result.tree_count} 本</span>
+              <span className="value">{result.tree_count.toLocaleString()}本</span>
             </div>
             {result.tree_points && result.tree_points.length > 0 && (
               <>
-                <div className="result-item" style={{ fontSize: '13px', marginLeft: '10px' }}>
-                  <span className="label">🌲 針葉樹:</span>
+                <div className="result-item">
+                  <span className="label">
+                    <span style={{ 
+                      display: 'inline-block', 
+                      width: '12px', 
+                      height: '12px', 
+                      background: '#2e7d32', 
+                      marginRight: '5px',
+                      borderRadius: '2px'
+                    }}></span>
+                    針葉樹:
+                  </span>
                   <span className="value">
-                    {result.tree_points.filter(p => p.tree_type === 'coniferous').length} 本
+                    {result.tree_points.filter(p => p.tree_type === 'coniferous').length.toLocaleString()}本
                   </span>
                 </div>
-                <div className="result-item" style={{ fontSize: '13px', marginLeft: '10px' }}>
-                  <span className="label">🌳 広葉樹:</span>
+                <div className="result-item">
+                  <span className="label">
+                    <span style={{ 
+                      display: 'inline-block', 
+                      width: '12px', 
+                      height: '12px', 
+                      background: '#8d6e63', 
+                      marginRight: '5px',
+                      borderRadius: '2px'
+                    }}></span>
+                    広葉樹:
+                  </span>
                   <span className="value">
-                    {result.tree_points.filter(p => p.tree_type === 'broadleaf').length} 本
+                    {result.tree_points.filter(p => p.tree_type === 'broadleaf').length.toLocaleString()}本
                   </span>
                 </div>
               </>
             )}
             <div className="result-item">
               <span className="label">材積:</span>
-              <span className="value">{result.volume_m3} m³</span>
-            </div>
-            <div className="result-item">
-              <span className="label">信頼度:</span>
-              <span className="value">{result.confidence}</span>
+              <span className="value">{result.volume_m3.toLocaleString()} m³</span>
             </div>
             {result.warnings && result.warnings.length > 0 && (
-              <div className="warnings">
-                <h3>注意事項:</h3>
-                <ul>
-                  {result.warnings.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
+              <div style={{
+                marginTop: '15px',
+                padding: '10px',
+                background: '#f5f5f5',
+                borderRadius: '4px',
+                fontSize: '11px',
+                color: '#666'
+              }}>
+                {result.warnings.map((w, i) => (
+                  <div key={i} style={{ marginBottom: '5px' }}>{w}</div>
+                ))}
               </div>
             )}
+            <button
+              onClick={handleClearResults}
+              style={{
+                width: '100%',
+                padding: '10px',
+                marginTop: '15px',
+                background: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 'bold'
+              }}
+            >
+              🗑️ 図形をクリア
+            </button>
           </div>
-        )}
+          )}
 
-        {error && (
-          <div className="section error">
-            <h3>エラー</h3>
-            <p>{typeof error === 'string' ? error : JSON.stringify(error)}</p>
-          </div>
-        )}
+          {error && (
+            <div className="section" style={{
+              background: '#f8d7da',
+              border: '1px solid #dc3545',
+              borderRadius: '4px',
+              padding: '15px'
+            }}>
+              <h3 style={{ color: '#721c24', marginBottom: '8px', fontSize: '13px' }}>エラー</h3>
+              <p style={{ color: '#721c24', fontSize: '12px', margin: 0 }}>
+                {typeof error === 'string' ? error : JSON.stringify(error)}
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="map-container">

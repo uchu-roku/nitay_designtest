@@ -1554,41 +1554,34 @@ function Map({ onAnalyze, disabled, imageBounds, fileId, zoomToImage, treePoints
             )}
           </div>
           
-          <div
+          <button
+            onClick={() => {
+              alert('【使い方】\n\n1. 左側のタブで解析モードを選択\n2. 地図上で矩形またはポリゴンを描画\n3. 自動的に解析が開始されます\n\n【ボタン説明】\n▭ 矩形: ドラッグで矩形を描画\n⬡ ポリゴン: クリックで頂点追加、ダブルクリックで完了\n🗺️ 行政区域: 市区町村の境界を表示\n🌊 河川: 河川を表示\n📋 森林簿: 林班・小班を表示してクリック可能')
+            }}
             style={{
               position: 'absolute',
               top: '10px',
               right: '10px',
               background: 'white',
-              padding: '10px',
-              borderRadius: '4px',
+              color: '#2c5f2d',
+              padding: '10px 16px',
+              border: '2px solid #2c5f2d',
+              borderRadius: '50%',
               boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               zIndex: 1000,
-              fontSize: '13px',
-              maxWidth: '250px'
+              fontSize: '18px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              width: '45px',
+              height: '45px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
+            title="使い方"
           >
-            <strong>操作方法:</strong><br />
-            {drawMode ? (
-              <span style={{ color: '#2c5f2d' }}>
-                {drawType === 'rectangle' 
-                  ? 'ドラッグして矩形を描画' 
-                  : 'クリックで頂点追加、ダブルクリックで完了'}
-              </span>
-            ) : (
-              <span>
-                ドラッグで地図を移動
-              </span>
-            )}
-            {imageBounds && (
-              <>
-                <br />
-                <span style={{ color: '#2c5f2d', fontSize: '11px' }}>
-                  ✓ アップロード画像表示中
-                </span>
-              </>
-            )}
-          </div>
+            ❓
+          </button>
         </>
       )}
       
