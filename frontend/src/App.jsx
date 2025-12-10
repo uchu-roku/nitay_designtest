@@ -1228,8 +1228,9 @@ function App() {
           )}
 
           {mode === 'upload' && (
-            <div className="section">
-              <h2>1. 画像アップロード</h2>
+            <>
+              <div className="section">
+                <h2>1. 画像アップロード</h2>
               
               {/* 画像品質の注意事項 */}
               <div style={{
@@ -1783,7 +1784,8 @@ function App() {
                   </button>
                 </div>
               )}
-            </div>
+              </div>
+            </>
           )}
 
           {analyzing && (
