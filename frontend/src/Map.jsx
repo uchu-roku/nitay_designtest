@@ -1160,117 +1160,44 @@ function Map({
             bottom: '10px',
             right: '10px',
             background: 'rgba(255, 255, 255, 0.95)',
-            padding: '12px',
-            borderRadius: '4px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            padding: '16px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             zIndex: 1000,
-            fontSize: '12px',
-            minWidth: '180px'
+            fontSize: '13px',
+            minWidth: '200px'
           }}
         >
-          <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '13px' }}>
-            🌲 材積分布
+          <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '16px', color: '#333' }}>
+            針葉樹
           </div>
           
-          {/* 針葉樹 */}
-          <div style={{ marginBottom: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-              <div style={{ 
-                width: '16px', 
-                height: '16px', 
-                background: '#2e7d32',
-                border: '1px solid #1b5e20',
-                borderRadius: '2px'
-              }} />
-              <span style={{ fontWeight: 'bold' }}>針葉樹</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#666', marginLeft: '22px' }}>
-              緑色で表示
-            </div>
+          {/* 針葉樹の濃淡バー */}
+          <div style={{ display: 'flex', marginBottom: '8px', gap: '2px' }}>
+            <div style={{ width: '50px', height: '20px', background: 'rgba(46, 125, 50, 0.3)', border: '1px solid #ccc' }} />
+            <div style={{ width: '50px', height: '20px', background: 'rgba(46, 125, 50, 0.6)', border: '1px solid #ccc' }} />
+            <div style={{ width: '50px', height: '20px', background: 'rgba(46, 125, 50, 0.9)', border: '1px solid #ccc' }} />
           </div>
           
-          {/* 広葉樹 */}
-          <div style={{ marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
-              <div style={{ 
-                width: '16px', 
-                height: '16px', 
-                background: '#8d6e63',
-                border: '1px solid #6d4c41',
-                borderRadius: '2px'
-              }} />
-              <span style={{ fontWeight: 'bold' }}>広葉樹</span>
-            </div>
-            <div style={{ fontSize: '10px', color: '#666', marginLeft: '22px' }}>
-              茶色で表示
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '11px', color: '#666' }}>
+            <span>低い</span>
+            <span>高い</span>
           </div>
           
-          {/* 材積の濃淡 */}
-          <div style={{ 
-            borderTop: '1px solid #ddd', 
-            paddingTop: '8px',
-            marginTop: '8px'
-          }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '11px' }}>
-              材積の濃淡（針葉樹）
-            </div>
-            <div style={{ fontSize: '10px', lineHeight: '1.6', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(46, 125, 50, 0.2)', border: '1px solid #ddd' }} />
-                <span>0 - 10</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(46, 125, 50, 0.35)', border: '1px solid #ddd' }} />
-                <span>10 - 20</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(46, 125, 50, 0.5)', border: '1px solid #ddd' }} />
-                <span>20 - 30</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(46, 125, 50, 0.65)', border: '1px solid #ddd' }} />
-                <span>30 - 40</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(46, 125, 50, 0.8)', border: '1px solid #ddd' }} />
-                <span>40 - 50</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(46, 125, 50, 0.95)', border: '1px solid #ddd' }} />
-                <span>50 - 60</span>
-              </div>
-            </div>
-            
-            <div style={{ fontWeight: 'bold', marginBottom: '6px', fontSize: '11px' }}>
-              材積の濃淡（広葉樹）
-            </div>
-            <div style={{ fontSize: '10px', lineHeight: '1.6' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.2)', border: '1px solid #ddd' }} />
-                <span>0 - 10</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.35)', border: '1px solid #ddd' }} />
-                <span>10 - 20</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.5)', border: '1px solid #ddd' }} />
-                <span>20 - 30</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.65)', border: '1px solid #ddd' }} />
-                <span>30 - 40</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.8)', border: '1px solid #ddd' }} />
-                <span>40 - 50</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: '30px', height: '12px', background: 'rgba(141, 110, 99, 0.95)', border: '1px solid #ddd' }} />
-                <span>50 - 60</span>
-              </div>
-            </div>
+          <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '16px', color: '#333' }}>
+            広葉樹
+          </div>
+          
+          {/* 広葉樹の濃淡バー */}
+          <div style={{ display: 'flex', marginBottom: '8px', gap: '2px' }}>
+            <div style={{ width: '50px', height: '20px', background: 'rgba(141, 110, 99, 0.3)', border: '1px solid #ccc' }} />
+            <div style={{ width: '50px', height: '20px', background: 'rgba(141, 110, 99, 0.6)', border: '1px solid #ccc' }} />
+            <div style={{ width: '50px', height: '20px', background: 'rgba(141, 110, 99, 0.9)', border: '1px solid #ccc' }} />
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#666' }}>
+            <span>低い</span>
+            <span>高い</span>
           </div>
         </div>
       )}
