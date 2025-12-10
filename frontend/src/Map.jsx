@@ -168,10 +168,15 @@ function Map({
     const map = L.map(mapRef.current, {
       center: [43.06, 141.35],
       zoom: 10,
-      zoomControl: true
+      zoomControl: false // デフォルトのズームコントロールを無効化
     })
     mapInstanceRef.current = map
     window.mapInstance = map
+
+    // カスタムズームコントロールを右下に追加
+    L.control.zoom({
+      position: 'bottomright'
+    }).addTo(map)
 
     // 国土地理院の航空写真タイル
     L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/seamlessphoto/{z}/{x}/{y}.jpg', {
@@ -1158,7 +1163,7 @@ function Map({
           style={{
             position: 'absolute',
             bottom: '10px',
-            right: '10px',
+            right: '80px', // ズームコントロールを避けるため右に余裕を持たせる
             background: 'rgba(255, 255, 255, 0.95)',
             padding: '16px',
             borderRadius: '8px',
