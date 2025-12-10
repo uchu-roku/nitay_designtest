@@ -221,6 +221,14 @@ function App() {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [chatMessages, setChatMessages] = useState([])
   const [chatInput, setChatInput] = useState('')
+  
+  // 地図コントロール用のstate
+  const [drawMode, setDrawMode] = useState(false)
+  const [drawType, setDrawType] = useState('rectangle')
+  const [showAdminBoundaries, setShowAdminBoundaries] = useState(false)
+  const [showRivers, setShowRivers] = useState(false)
+  const [showForestRegistry, setShowForestRegistry] = useState(false)
+  const [forestSearchQuery, setForestSearchQuery] = useState('')
 
   const handleClearResults = useCallback(() => {
     console.log('解析結果をクリアします')
@@ -687,16 +695,234 @@ function App() {
         </div>
 
         <div className="sidebar-content">
-          <div className="section">
-            <h2>範囲を指定</h2>
-            <p className="instruction" style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
-              矩形/ポリゴンを描画、または森林簿から小班を選択
-            </p>
-            <p className="instruction" style={{ fontSize: '11px', color: '#888', marginTop: '5px', lineHeight: '1.5' }}>
-              ▭ 矩形: ドラッグで描画<br />
-              ⬡ ポリゴン: クリックで頂点追加、ダブルクリックで完了
-            </p>
-          </div>
+          {mode !== 'chatbot' && (
+            <>
+              <div className="section">
+                <h2>範囲を指定</h2>
+                
+                {/* 描画ボタン */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                  <button
+                    onClick={() => {
+                      setDrawType('rectangle')
+                      setDrawMode(true)
+                    }}
+                    disabled={drawMode}
+                    style={{
+                      flex: 1,
+                      background: drawMode && drawType === 'rectangle' ? '#2c5f2d' : 'white',
+                      color: drawMode && drawType === 'rectangle' ? 'white' : '#2c5f2d',
+                      padding: '10px',
+                      border: '2px solid #2c5f2d',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: drawMode ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <span style={{ fontSize: '14px' }}>▭</span>
+                    矩形
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDrawType('polygon')
+                      setDrawMode(true)
+                    }}
+                    disabled={drawMode}
+                    style={{
+                      flex: 1,
+                      background: drawMode && drawType === 'polygon' ? '#2c5f2d' : 'white',
+                      color: drawMode && drawType === 'polygon' ? 'white' : '#2c5f2d',
+                      padding: '10px',
+                      border: '2px solid #2c5f2d',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      cursor: drawMode ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <span style={{ fontSize: '14px' }}>⬡</span>
+                    ポリゴン
+                  </button>
+                </div>
+                
+                {drawMode && (
+                  <div style={{
+                    background: '#e8f5e9',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    marginBottom: '12px',
+                    fontSize: '11px',
+                    border: '1px solid #4CAF50'
+                  }}>
+                    <div style={{ fontWeight: 'bold', color: '#2c5f2d', marginBottom: '5px' }}>
+                      ✏️ {drawType === 'rectangle' ? '矩形描画中' : 'ポリゴン描画中'}
+                    </div>
+                    <div style={{ color: '#666', lineHeight: '1.5' }}>
+                      {drawType === 'rectangle' 
+                        ? 'ドラッグして矩形を描画してください'
+                        : 'クリックで頂点を追加、ダブルクリックで完了'}
+                    </div>
+                    <button
+                      onClick={() => setDrawMode(false)}
+                      style={{
+                        marginTop: '8px',
+                        width: '100%',
+                        background: 'white',
+                        color: '#2c5f2d',
+                        padding: '6px',
+                        border: '1px solid #2c5f2d',
+                        borderRadius: '3px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                )}
+                
+                <p className="instruction" style={{ fontSize: '11px', color: '#888', lineHeight: '1.5' }}>
+                  地図上で範囲を描画するか、下のレイヤーボタンから森林簿を表示して小班を選択できます。
+                </p>
+              </div>
+              
+              <div className="section">
+                <h2>レイヤー表示</h2>
+                
+                {/* 行政区域ボタン */}
+                <button
+                  onClick={() => setShowAdminBoundaries(!showAdminBoundaries)}
+                  style={{
+                    width: '100%',
+                    background: showAdminBoundaries ? '#ff6b6b' : 'white',
+                    color: showAdminBoundaries ? 'white' : '#333',
+                    padding: '10px',
+                    border: showAdminBoundaries ? 'none' : '2px solid #ff6b6b',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '8px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>🗺️</span>
+                  行政区域
+                  {showAdminBoundaries && <span style={{ marginLeft: 'auto', fontSize: '10px' }}>ON</span>}
+                </button>
+                
+                {/* 河川ボタン */}
+                <button
+                  onClick={() => setShowRivers(!showRivers)}
+                  style={{
+                    width: '100%',
+                    background: showRivers ? '#2196F3' : 'white',
+                    color: showRivers ? 'white' : '#333',
+                    padding: '10px',
+                    border: showRivers ? 'none' : '2px solid #2196F3',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '8px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>🌊</span>
+                  河川
+                  {showRivers && <span style={{ marginLeft: 'auto', fontSize: '10px' }}>ON</span>}
+                </button>
+                
+                {/* 森林簿ボタン */}
+                <button
+                  onClick={() => setShowForestRegistry(!showForestRegistry)}
+                  style={{
+                    width: '100%',
+                    background: showForestRegistry ? '#8B4513' : 'white',
+                    color: showForestRegistry ? 'white' : '#333',
+                    padding: '10px',
+                    border: showForestRegistry ? 'none' : '2px solid #8B4513',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '8px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>📋</span>
+                  森林簿
+                  {showForestRegistry && <span style={{ marginLeft: 'auto', fontSize: '10px' }}>ON</span>}
+                </button>
+                
+                {/* 森林簿検索 */}
+                {showForestRegistry && (
+                  <div style={{
+                    background: '#f5f5f5',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    marginTop: '8px'
+                  }}>
+                    <input
+                      type="text"
+                      placeholder="林班-小班 (例: 0053-0049)"
+                      value={forestSearchQuery}
+                      onChange={(e) => setForestSearchQuery(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && window.handleForestSearch) {
+                          window.handleForestSearch(forestSearchQuery)
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid #8B4513',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        marginBottom: '8px'
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (window.handleForestSearch) {
+                          window.handleForestSearch(forestSearchQuery)
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        background: '#8B4513',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🔍 検索
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {mode === 'chatbot' && (
             <div className="section">
@@ -1178,6 +1404,14 @@ function App() {
           onClearResults={handleClearResults}
           onImageLoaded={handleImageLoaded}
           isMultiPolygon={result?.is_multi_polygon || false}
+          drawMode={drawMode}
+          drawType={drawType}
+          showAdminBoundaries={showAdminBoundaries}
+          showRivers={showRivers}
+          showForestRegistry={showForestRegistry}
+          forestSearchQuery={forestSearchQuery}
+          onDrawModeChange={setDrawMode}
+          onForestSearchQueryChange={setForestSearchQuery}
         />
       </div>
     </div>
