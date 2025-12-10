@@ -1162,8 +1162,8 @@ function Map({
         <div
           style={{
             position: 'absolute',
-            bottom: '80px', // 上に移動（ズームコントロールを避ける）
-            right: '20px', // 右端から少し離す
+            bottom: '10px', // 右下の角に配置
+            right: '80px', // ズームコントロール分のスペースを確保
             background: 'rgba(255, 255, 255, 0.95)',
             padding: '16px',
             borderRadius: '8px',
