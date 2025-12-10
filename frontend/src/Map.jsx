@@ -1173,15 +1173,18 @@ function Map({
           </div>
           
           {/* 針葉樹の濃淡バー */}
-          <div style={{ display: 'flex', marginBottom: '8px', gap: '2px' }}>
-            <div style={{ width: '50px', height: '20px', background: 'rgba(46, 125, 50, 0.3)', border: '1px solid #ccc' }} />
-            <div style={{ width: '50px', height: '20px', background: 'rgba(46, 125, 50, 0.6)', border: '1px solid #ccc' }} />
-            <div style={{ width: '50px', height: '20px', background: 'rgba(46, 125, 50, 0.9)', border: '1px solid #ccc' }} />
+          <div style={{ display: 'flex', marginBottom: '8px', gap: '1px' }}>
+            <div style={{ width: '25px', height: '20px', background: 'rgba(46, 125, 50, 0.2)', border: '1px solid #ccc' }} />
+            <div style={{ width: '25px', height: '20px', background: 'rgba(46, 125, 50, 0.35)', border: '1px solid #ccc' }} />
+            <div style={{ width: '25px', height: '20px', background: 'rgba(46, 125, 50, 0.5)', border: '1px solid #ccc' }} />
+            <div style={{ width: '25px', height: '20px', background: 'rgba(46, 125, 50, 0.65)', border: '1px solid #ccc' }} />
+            <div style={{ width: '25px', height: '20px', background: 'rgba(46, 125, 50, 0.8)', border: '1px solid #ccc' }} />
+            <div style={{ width: '25px', height: '20px', background: 'rgba(46, 125, 50, 0.95)', border: '1px solid #ccc' }} />
           </div>
           
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '11px', color: '#666' }}>
-            <span>低い</span>
-            <span>高い</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '10px', color: '#666' }}>
+            <span>0-10</span>
+            <span>50-60</span>
           </div>
           
           <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '16px', color: '#333' }}>
@@ -1189,15 +1192,18 @@ function Map({
           </div>
           
           {/* 広葉樹の濃淡バー */}
-          <div style={{ display: 'flex', marginBottom: '8px', gap: '2px' }}>
-            <div style={{ width: '50px', height: '20px', background: 'rgba(141, 110, 99, 0.3)', border: '1px solid #ccc' }} />
-            <div style={{ width: '50px', height: '20px', background: 'rgba(141, 110, 99, 0.6)', border: '1px solid #ccc' }} />
-            <div style={{ width: '50px', height: '20px', background: 'rgba(141, 110, 99, 0.9)', border: '1px solid #ccc' }} />
+          <div style={{ display: 'flex', marginBottom: '8px', gap: '1px' }}>
+            <div style={{ width: '25px', height: '20px', background: 'rgba(141, 110, 99, 0.2)', border: '1px solid #ccc' }} />
+            <div style={{ width: '25px', height: '20px', background: 'rgba(141, 110, 99, 0.35)', border: '1px solid #ccc' }} />
+            <div style={{ width: '25px', height: '20px', background: 'rgba(141, 110, 99, 0.5)', border: '1px solid #ccc' }} />
+            <div style={{ width: '25px', height: '20px', background: 'rgba(141, 110, 99, 0.65)', border: '1px solid #ccc' }} />
+            <div style={{ width: '25px', height: '20px', background: 'rgba(141, 110, 99, 0.8)', border: '1px solid #ccc' }} />
+            <div style={{ width: '25px', height: '20px', background: 'rgba(141, 110, 99, 0.95)', border: '1px solid #ccc' }} />
           </div>
           
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#666' }}>
-            <span>低い</span>
-            <span>高い</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#666' }}>
+            <span>0-10</span>
+            <span>50-60</span>
           </div>
         </div>
       )}
