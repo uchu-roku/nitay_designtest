@@ -869,77 +869,143 @@ function App() {
               <div className="section">
                 <h2>レイヤー表示</h2>
                 
-                {/* 行政区域ボタン */}
-                <button
+                {/* 行政区域レイヤー */}
+                <div
                   onClick={() => setShowAdminBoundaries(!showAdminBoundaries)}
                   style={{
                     width: '100%',
-                    background: showAdminBoundaries ? '#ff6b6b' : 'white',
-                    color: showAdminBoundaries ? 'white' : '#333',
-                    padding: '10px',
-                    border: showAdminBoundaries ? 'none' : '2px solid #ff6b6b',
-                    borderRadius: '4px',
-                    fontSize: '12px',
+                    background: 'white',
+                    padding: '12px 16px',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '14px',
                     fontWeight: 'bold',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '8px'
+                    justifyContent: 'space-between',
+                    marginBottom: '8px',
+                    color: '#333'
                   }}
                 >
-                  <span style={{ fontSize: '14px' }}>🗺️</span>
-                  行政区域
-                  {showAdminBoundaries && <span style={{ marginLeft: 'auto', fontSize: '10px' }}>ON</span>}
-                </button>
+                  <span>🗺️ 行政区域レイヤー</span>
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '26px',
+                      background: showAdminBoundaries ? '#2c5f2d' : '#ccc',
+                      borderRadius: '13px',
+                      position: 'relative',
+                      transition: 'background 0.3s'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '22px',
+                        background: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: showAdminBoundaries ? '26px' : '2px',
+                        transition: 'left 0.3s',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  </div>
+                </div>
                 
-                {/* 河川ボタン */}
-                <button
+                {/* 河川レイヤー */}
+                <div
                   onClick={() => setShowRivers(!showRivers)}
                   style={{
                     width: '100%',
-                    background: showRivers ? '#2196F3' : 'white',
-                    color: showRivers ? 'white' : '#333',
-                    padding: '10px',
-                    border: showRivers ? 'none' : '2px solid #2196F3',
-                    borderRadius: '4px',
-                    fontSize: '12px',
+                    background: 'white',
+                    padding: '12px 16px',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '14px',
                     fontWeight: 'bold',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '8px'
+                    justifyContent: 'space-between',
+                    marginBottom: '8px',
+                    color: '#333'
                   }}
                 >
-                  <span style={{ fontSize: '14px' }}>🌊</span>
-                  河川
-                  {showRivers && <span style={{ marginLeft: 'auto', fontSize: '10px' }}>ON</span>}
-                </button>
+                  <span>🌊 河川レイヤー</span>
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '26px',
+                      background: showRivers ? '#2c5f2d' : '#ccc',
+                      borderRadius: '13px',
+                      position: 'relative',
+                      transition: 'background 0.3s'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '22px',
+                        background: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: showRivers ? '26px' : '2px',
+                        transition: 'left 0.3s',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  </div>
+                </div>
                 
-                {/* 森林簿ボタン */}
-                <button
+                {/* 森林簿レイヤー */}
+                <div
                   onClick={() => setShowForestRegistry(!showForestRegistry)}
                   style={{
                     width: '100%',
-                    background: showForestRegistry ? '#8B4513' : 'white',
-                    color: showForestRegistry ? 'white' : '#333',
-                    padding: '10px',
-                    border: showForestRegistry ? 'none' : '2px solid #8B4513',
-                    borderRadius: '4px',
-                    fontSize: '12px',
+                    background: 'white',
+                    padding: '12px 16px',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '14px',
                     fontWeight: 'bold',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '8px'
+                    justifyContent: 'space-between',
+                    marginBottom: '8px',
+                    color: '#333'
                   }}
                 >
-                  <span style={{ fontSize: '14px' }}>📋</span>
-                  森林簿
-                  {showForestRegistry && <span style={{ marginLeft: 'auto', fontSize: '10px' }}>ON</span>}
-                </button>
+                  <span>📋 森林簿レイヤー</span>
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '26px',
+                      background: showForestRegistry ? '#2c5f2d' : '#ccc',
+                      borderRadius: '13px',
+                      position: 'relative',
+                      transition: 'background 0.3s'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '22px',
+                        background: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: showForestRegistry ? '26px' : '2px',
+                        transition: 'left 0.3s',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  </div>
+                </div>
                 
                 {/* 森林簿検索 */}
                 {showForestRegistry && (
