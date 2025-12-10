@@ -888,7 +888,7 @@ function App() {
                     color: '#333'
                   }}
                 >
-                  <span>🗺️ 行政区域レイヤー</span>
+                  <span>行政区域レイヤー</span>
                   <div
                     style={{
                       width: '50px',
@@ -934,7 +934,7 @@ function App() {
                     color: '#333'
                   }}
                 >
-                  <span>🌊 河川レイヤー</span>
+                  <span>河川レイヤー</span>
                   <div
                     style={{
                       width: '50px',
@@ -980,7 +980,7 @@ function App() {
                     color: '#333'
                   }}
                 >
-                  <span>📋 森林簿レイヤー</span>
+                  <span>森林簿レイヤー</span>
                   <div
                     style={{
                       width: '50px',
