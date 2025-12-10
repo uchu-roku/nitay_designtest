@@ -696,7 +696,7 @@ function App() {
         </div>
 
         <div className="sidebar-content">
-          {mode !== 'chatbot' && (
+          {mode === 'map' && (
             <>
               <div className="section">
                 <h2>範囲を指定</h2>
