@@ -229,6 +229,7 @@ function App() {
   const [showRivers, setShowRivers] = useState(false)
   const [showForestRegistry, setShowForestRegistry] = useState(false)
   const [forestSearchQuery, setForestSearchQuery] = useState('')
+  const [hasShape, setHasShape] = useState(false) // 図形が描画されているか
 
   const handleClearResults = useCallback(() => {
     console.log('解析結果をクリアします')
@@ -921,6 +922,75 @@ function App() {
                   </div>
                 )}
               </div>
+              
+              {/* 図形クリア・結果クリアボタン */}
+              {(hasShape || (result && result.tree_points && result.tree_points.length > 0)) && (
+                <div className="section">
+                  <h2>クリア操作</h2>
+                  
+                  {hasShape && (
+                    <button
+                      onClick={() => {
+                        // Map.jsxの図形クリア関数を呼び出し
+                        if (window.clearMapShape) {
+                          window.clearMapShape()
+                        }
+                        setHasShape(false)
+                        handleClearResults()
+                      }}
+                      style={{
+                        width: '100%',
+                        background: '#dc3545',
+                        color: 'white',
+                        padding: '10px',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      <span style={{ fontSize: '14px' }}>🗑️</span>
+                      図形をクリア
+                    </button>
+                  )}
+                  
+                  {!hasShape && result && result.tree_points && result.tree_points.length > 0 && (
+                    <button
+                      onClick={() => {
+                        // Map.jsxの結果クリア関数を呼び出し
+                        if (window.clearMapResults) {
+                          window.clearMapResults()
+                        }
+                        handleClearResults()
+                      }}
+                      style={{
+                        width: '100%',
+                        background: '#dc3545',
+                        color: 'white',
+                        padding: '10px',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <span style={{ fontSize: '14px' }}>🗑️</span>
+                      結果をクリア
+                    </button>
+                  )}
+                </div>
+              )}
             </>
           )}
 
@@ -1354,23 +1424,7 @@ function App() {
                 ))}
               </div>
             )}
-            <button
-              onClick={handleClearResults}
-              style={{
-                width: '100%',
-                padding: '10px',
-                marginTop: '15px',
-                background: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: 'bold'
-              }}
-            >
-              🗑️ 図形をクリア
-            </button>
+
           </div>
           )}
 
@@ -1412,6 +1466,7 @@ function App() {
           forestSearchQuery={forestSearchQuery}
           onDrawModeChange={setDrawMode}
           onForestSearchQueryChange={setForestSearchQuery}
+          onHasShapeChange={setHasShape}
         />
       </div>
     </div>

@@ -24,7 +24,8 @@ function Map({
   showForestRegistry,
   forestSearchQuery,
   onDrawModeChange,
-  onForestSearchQueryChange
+  onForestSearchQueryChange,
+  onHasShapeChange
 }) {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
@@ -51,8 +52,30 @@ function Map({
     disabledRef.current = disabled
   }, [onAnalyze, disabled])
 
-  // 森林簿検索処理をグローバル関数として登録
+  // グローバル関数を登録
   useEffect(() => {
+    // 図形クリア関数
+    window.clearMapShape = () => {
+      if (shapeLayerRef.current && mapInstanceRef.current) {
+        mapInstanceRef.current.removeLayer(shapeLayerRef.current)
+        shapeLayerRef.current = null
+        setHasShape(false)
+        console.log('図形をクリアしました')
+      }
+    }
+    
+    // 結果クリア関数
+    window.clearMapResults = () => {
+      if (treeMarkersRef.current && mapInstanceRef.current) {
+        treeMarkersRef.current.forEach(marker => {
+          mapInstanceRef.current.removeLayer(marker)
+        })
+        treeMarkersRef.current = []
+        console.log('解析結果をクリアしました')
+      }
+    }
+    
+    // 森林簿検索関数
     window.handleForestSearch = (query) => {
       if (!query || !query.trim() || !forestRegistryLayerRef.current || !mapInstanceRef.current) {
         console.log('検索条件が不足しています')
@@ -113,6 +136,8 @@ function Map({
     }
 
     return () => {
+      delete window.clearMapShape
+      delete window.clearMapResults
       delete window.handleForestSearch
     }
   }, [highlightedLayerRef])
@@ -236,6 +261,7 @@ function Map({
         
         shapeLayerRef.current = finalPolygon
         setHasShape(true)
+        onHasShapeChange(true)
         onDrawModeChange(false)
         drawingStateRef.current.drawModeEnabled = false
         
@@ -338,6 +364,7 @@ function Map({
       // 矩形を確定
       shapeLayerRef.current = tempShape
       setHasShape(true)
+      onHasShapeChange(true)
       onDrawModeChange(false)
       drawingStateRef.current.drawModeEnabled = false
       startLatLng = null
@@ -1247,165 +1274,7 @@ function Map({
           </div>
         </div>
       )}
-      {/* 描画モード中の表示（地図上） */}
-      {drawMode && (
-        <div style={{
-          position: 'absolute',
-          top: '70px',
-          left: '10px',
-          background: '#2c5f2d',
-          color: 'white',
-          padding: '12px 16px',
-          borderRadius: '4px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-          fontSize: '14px',
-          fontWeight: 'bold',
-          zIndex: 1000
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '18px' }}>✏️</span>
-            {drawType === 'rectangle' ? '矩形描画中' : 'ポリゴン描画中'}
-          </div>
-          {drawType === 'polygon' && (
-            <div style={{ fontSize: '11px', marginTop: '5px', opacity: 0.9 }}>
-              クリックで頂点を追加<br/>
-              ダブルクリックで完了<br/>
-              {polygonPointCount > 0 && (
-                <span style={{ color: '#fff', fontWeight: 'bold' }}>
-                  現在: {polygonPointCount}頂点
-                  {polygonPointCount < 3 && ' (最低3つ必要)'}
-                </span>
-              )}
-            </div>
-          )}
-          <button
-            onClick={() => {
-              onDrawModeChange(false)
-              setPolygonPointCount(0)
-              // 描画中の図形をクリア
-              if (drawingStateRef.current.shape && mapInstanceRef.current) {
-                mapInstanceRef.current.removeLayer(drawingStateRef.current.shape)
-                drawingStateRef.current.shape = null
-                drawingStateRef.current.polygonPoints = []
-              }
-              // 森林簿の範囲指定モードをキャンセル
-              if (window.forestRegistryPartialMode) {
-                window.forestRegistryPartialMode = false
-                // 森林簿レイヤーのz-indexを元に戻す
-                if (window.mapInstance) {
-                  const pane = window.mapInstance.getPane('forestRegistryPane')
-                  if (pane) {
-                    pane.style.zIndex = 450 // 元の値に戻す
-                  }
-                }
-                // 森林簿レイヤーを再表示（透明度を元に戻す）
-                if (window.forestRegistryLayer) {
-                  window.forestRegistryLayer.eachLayer(layer => {
-                    layer.setStyle({ opacity: 0.7, fillOpacity: 0.15 })
-                  })
-                }
-              }
-            }}
-            style={{
-              marginTop: '8px',
-              width: '100%',
-              background: 'white',
-              color: '#2c5f2d',
-              padding: '6px',
-              border: 'none',
-              borderRadius: '3px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: 'pointer'
-            }}
-          >
-            キャンセル
-          </button>
-        </div>
-      )}
-      
       {!disabled && (
-        <>
-          {/* 図形クリアボタン */}
-          {hasShape && !drawMode && (
-            <button
-              onClick={() => {
-                if (shapeLayerRef.current && mapInstanceRef.current) {
-                  mapInstanceRef.current.removeLayer(shapeLayerRef.current)
-                  shapeLayerRef.current = null
-                  setHasShape(false)
-                  console.log('図形をクリアしました')
-                }
-                // 解析結果もクリア
-                if (onClearResults) {
-                  onClearResults()
-                }
-              }}
-              style={{
-                position: 'absolute',
-                top: '70px',
-                left: '10px',
-                background: '#dc3545',
-                color: 'white',
-                padding: '10px 16px',
-                border: 'none',
-                borderRadius: '4px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                zIndex: 1000
-              }}
-            >
-              <span style={{ fontSize: '16px' }}>🗑️</span>
-              図形をクリア
-            </button>
-          )}
-          
-          {/* 結果クリアボタン（図形がない場合でも表示） */}
-          {!hasShape && !drawMode && treePoints && treePoints.length > 0 && (
-            <button
-              onClick={() => {
-                // 樹木マーカーをクリア
-                if (treeMarkersRef.current && mapInstanceRef.current) {
-                  treeMarkersRef.current.forEach(marker => {
-                    mapInstanceRef.current.removeLayer(marker)
-                  })
-                  treeMarkersRef.current = []
-                }
-                // 解析結果をクリア
-                if (onClearResults) {
-                  onClearResults()
-                }
-                console.log('解析結果をクリアしました')
-              }}
-              style={{
-                position: 'absolute',
-                top: '70px',
-                left: '10px',
-                background: '#dc3545',
-                color: 'white',
-                padding: '10px 16px',
-                border: 'none',
-                borderRadius: '4px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                zIndex: 1000
-              }}
-            >
-              <span style={{ fontSize: '16px' }}>🗑️</span>
-              結果をクリア
-            </button>
-          )}
-          
           <button
             onClick={() => {
               alert('【使い方】\n\n1. 左側のタブで解析モードを選択\n2. 地図上で矩形またはポリゴンを描画\n3. 自動的に解析が開始されます\n\n【ボタン説明】\n▭ 矩形: ドラッグで矩形を描画\n⬡ ポリゴン: クリックで頂点追加、ダブルクリックで完了\n🗺️ 行政区域: 市区町村の境界を表示\n🌊 河川: 河川を表示\n📋 森林簿: 林班・小班を表示してクリック可能')
@@ -1434,7 +1303,6 @@ function Map({
           >
             ❓
           </button>
-        </>
       )}
       
       {imageLoading && (
