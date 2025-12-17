@@ -634,7 +634,7 @@ function App() {
   return (
     <div className="app">
       <div className="sidebar">
-        <h1>材積予測アプリ</h1>
+        <h1>Nitay</h1>
         
         {/* タブ形式のモード選択 */}
         <div style={{ 
