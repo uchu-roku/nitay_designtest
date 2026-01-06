@@ -22,6 +22,7 @@ function Map({
   showAdminBoundaries,
   showRivers,
   showForestRegistry,
+  showSlope,
   forestSearchQuery,
   onDrawModeChange,
   onForestSearchQueryChange,
@@ -42,6 +43,7 @@ function Map({
   const adminLayerRef = useRef(null)
   const riverLayerRef = useRef(null)
   const forestRegistryLayerRef = useRef(null)
+  const slopeLayerRef = useRef(null)
   const sapporoBoundsLayerRef = useRef(null)
   const onAnalyzeRef = useRef(onAnalyze)
   const disabledRef = useRef(disabled)
@@ -1118,6 +1120,100 @@ function Map({
       console.log('森林簿を非表示にしました')
     }
   }, [showForestRegistry])
+
+  // 標高傾斜度メッシュの表示/非表示
+  useEffect(() => {
+    if (!mapInstanceRef.current) return
+
+    const map = mapInstanceRef.current
+
+    if (showSlope && !slopeLayerRef.current) {
+      // 標高傾斜度メッシュデータを読み込み
+      console.log('標高傾斜度メッシュデータを読み込みます')
+      const baseUrl = import.meta.env.BASE_URL || '/'
+      const slopeUrl = `${baseUrl}data/administrative/keisya/slope_simple.geojson`
+      console.log('傾斜度URL:', slopeUrl)
+      fetch(slopeUrl)
+        .then(res => {
+          console.log('傾斜度レスポンス:', res.status, res.ok)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.json()
+        })
+        .then(data => {
+          console.log('傾斜度データ読み込み完了:', data.features?.length, '件')
+          
+          // 傾斜度用のカスタムペインを作成（z-indexを制御するため）
+          if (!map.getPane('slopePane')) {
+            const pane = map.createPane('slopePane')
+            pane.style.zIndex = 380 // adminLayer(400)より低く、背景より高く設定
+          }
+          
+          // 傾斜度の値に応じた色分け関数
+          const getSlopeColor = (slope) => {
+            if (slope < 5) return '#90EE90'    // 薄緑 (0-5度: 平坦)
+            if (slope < 10) return '#FFFF99'   // 薄黄 (5-10度: 緩傾斜)
+            if (slope < 15) return '#FFD700'   // 金色 (10-15度: 中傾斜)
+            if (slope < 20) return '#FFA500'   // オレンジ (15-20度: 急傾斜)
+            if (slope < 30) return '#FF6347'   // トマト色 (20-30度: 急峻)
+            return '#DC143C'                   // 深紅 (30度以上: 非常に急峻)
+          }
+          
+          // GeoJSONレイヤーを追加
+          const slopeLayer = L.geoJSON(data, {
+            pane: 'slopePane',
+            style: (feature) => {
+              // 傾斜度の値を取得（G04d_010が傾斜度）
+              const slope = parseFloat(feature.properties.G04d_010) || 0
+              return {
+                color: getSlopeColor(slope),
+                weight: 0,
+                opacity: 0,
+                fillOpacity: 0.6,
+                fillColor: getSlopeColor(slope)
+              }
+            },
+            onEachFeature: (feature, layer) => {
+              // ポップアップを追加
+              const slope = parseFloat(feature.properties.G04d_010) || 0
+              const elevation = parseFloat(feature.properties.G04d_002) || 'N/A'
+              
+              let slopeCategory = ''
+              if (slope < 5) slopeCategory = '平坦'
+              else if (slope < 10) slopeCategory = '緩傾斜'
+              else if (slope < 15) slopeCategory = '中傾斜'
+              else if (slope < 20) slopeCategory = '急傾斜'
+              else if (slope < 30) slopeCategory = '急峻'
+              else slopeCategory = '非常に急峻'
+              
+              layer.bindPopup(`
+                <div style="font-size: 13px;">
+                  <strong>📐 標高傾斜度メッシュ</strong><br/>
+                  傾斜度: ${slope.toFixed(1)}° (${slopeCategory})<br/>
+                  標高: ${elevation}m<br/>
+                  <div style="margin-top: 8px; font-size: 11px; color: #666;">
+                    <div style="display: inline-block; width: 12px; height: 12px; background: ${getSlopeColor(slope)}; border: 1px solid #999; margin-right: 4px;"></div>
+                    ${slopeCategory}地形
+                  </div>
+                </div>
+              `)
+            }
+          })
+          
+          slopeLayer.addTo(map)
+          slopeLayerRef.current = slopeLayer
+          
+          console.log('標高傾斜度メッシュを地図に追加しました')
+        })
+        .catch(err => {
+          console.error('標高傾斜度メッシュデータの読み込みエラー:', err)
+        })
+    } else if (!showSlope && slopeLayerRef.current) {
+      // 標高傾斜度メッシュレイヤーを削除
+      map.removeLayer(slopeLayerRef.current)
+      slopeLayerRef.current = null
+      console.log('標高傾斜度メッシュを非表示にしました')
+    }
+  }, [showSlope])
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>

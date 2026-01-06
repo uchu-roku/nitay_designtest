@@ -228,6 +228,7 @@ function App() {
   const [showAdminBoundaries, setShowAdminBoundaries] = useState(false)
   const [showRivers, setShowRivers] = useState(false)
   const [showForestRegistry, setShowForestRegistry] = useState(false)
+  const [showSlope, setShowSlope] = useState(false)
   const [forestSearchQuery, setForestSearchQuery] = useState('')
   const [hasShape, setHasShape] = useState(false) // 図形が描画されているか
 
@@ -1056,6 +1057,52 @@ function App() {
                     </button>
                   </div>
                 )}
+                
+                {/* 標高傾斜度メッシュレイヤー */}
+                <div
+                  onClick={() => setShowSlope(!showSlope)}
+                  style={{
+                    width: '100%',
+                    background: 'white',
+                    padding: '12px 16px',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '8px',
+                    color: '#333'
+                  }}
+                >
+                  <span>標高傾斜度メッシュ</span>
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '26px',
+                      background: showSlope ? '#2c5f2d' : '#ccc',
+                      borderRadius: '13px',
+                      position: 'relative',
+                      transition: 'background 0.3s'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '22px',
+                        background: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: showSlope ? '26px' : '2px',
+                        transition: 'left 0.3s',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -1784,6 +1831,52 @@ function App() {
                   </button>
                 </div>
               )}
+              
+              {/* 標高傾斜度メッシュレイヤー */}
+              <div
+                onClick={() => setShowSlope(!showSlope)}
+                style={{
+                  width: '100%',
+                  background: 'white',
+                  padding: '12px 16px',
+                  border: '2px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                  color: '#333'
+                }}
+              >
+                <span>標高傾斜度メッシュ</span>
+                <div
+                  style={{
+                    width: '50px',
+                    height: '26px',
+                    background: showSlope ? '#2c5f2d' : '#ccc',
+                    borderRadius: '13px',
+                    position: 'relative',
+                    transition: 'background 0.3s'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '22px',
+                      height: '22px',
+                      background: 'white',
+                      borderRadius: '50%',
+                      position: 'absolute',
+                      top: '2px',
+                      left: showSlope ? '26px' : '2px',
+                      transition: 'left 0.3s',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}
+                  />
+                </div>
+              </div>
               </div>
             </>
           )}
@@ -1896,6 +1989,7 @@ function App() {
           showAdminBoundaries={showAdminBoundaries}
           showRivers={showRivers}
           showForestRegistry={showForestRegistry}
+          showSlope={showSlope}
           forestSearchQuery={forestSearchQuery}
           onDrawModeChange={setDrawMode}
           onForestSearchQueryChange={setForestSearchQuery}
