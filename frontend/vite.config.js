@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/zaisekiyosokuapp/',   // ← 追加（リポジトリ名）
+  base: '/Forest-shinrinkumiai/',   // ← リポジトリ名
   server: {
     port: 3000
   }
