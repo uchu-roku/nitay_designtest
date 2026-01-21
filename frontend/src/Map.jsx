@@ -1121,49 +1121,49 @@ function Map({
     }
   }, [showForestRegistry])
 
-  // 標高傾斜度の表示/非表示（傾斜量区分図）
+  // 等高線の表示/非表示
   useEffect(() => {
     if (!mapInstanceRef.current) return
 
     const map = mapInstanceRef.current
 
     if (showSlope && !slopeLayerRef.current) {
-      console.log('傾斜量区分図レイヤーを追加します')
+      console.log('等高線レイヤーを追加します')
       
-      // 国土地理院の傾斜量区分図
-      const slopeLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/slopezone1map/{z}/{x}/{y}.png', {
+      // 国土地理院の等高線（標高・傾斜度）
+      const slopeLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/contour/{z}/{x}/{y}.png', {
         attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
-        opacity: 0.8,
+        opacity: 0.7,
         maxZoom: 18,
-        maxNativeZoom: 15, // 実際のタイルデータの最大ズーム
+        maxNativeZoom: 17, // 実際のタイルデータの最大ズーム
         minZoom: 2,
-        className: 'slope-layer'
+        className: 'contour-layer'
       })
       
       slopeLayer.on('tileload', (e) => {
-        console.log('傾斜量区分図タイル読み込み成功:', e.tile.src)
+        console.log('等高線タイル読み込み成功:', e.tile.src)
       })
       
       slopeLayer.on('tileerror', (e) => {
-        console.warn('傾斜量区分図タイルエラー:', e.tile.src)
+        console.warn('等高線タイルエラー:', e.tile.src)
       })
       
       slopeLayer.on('loading', () => {
-        console.log('傾斜量区分図レイヤー読み込み開始')
+        console.log('等高線レイヤー読み込み開始')
       })
       
       slopeLayer.on('load', () => {
-        console.log('傾斜量区分図レイヤー読み込み完了')
+        console.log('等高線レイヤー読み込み完了')
       })
       
       slopeLayer.addTo(map)
       slopeLayerRef.current = slopeLayer
-      console.log('傾斜量区分図を地図に追加しました')
+      console.log('等高線を地図に追加しました')
     } else if (!showSlope && slopeLayerRef.current) {
-      // 傾斜量区分図レイヤーを削除
+      // 等高線レイヤーを削除
       map.removeLayer(slopeLayerRef.current)
       slopeLayerRef.current = null
-      console.log('傾斜量区分図を非表示にしました')
+      console.log('等高線を非表示にしました')
     }
   }, [showSlope])
 
@@ -1261,7 +1261,7 @@ function Map({
         </div>
       )}
       
-      {/* 傾斜度凡例表示 */}
+      {/* 等高線凡例表示 */}
       {showSlope && (
         <div
           style={{
@@ -1278,31 +1278,27 @@ function Map({
           }}
         >
           <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '16px', color: '#333' }}>
-            📐 傾斜量区分図
+            📏 等高線
           </div>
           
           <div style={{ marginBottom: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-              <div style={{ width: '20px', height: '15px', background: '#FFA500', marginRight: '8px', border: '1px solid #ccc' }} />
-              <span style={{ fontSize: '12px' }}>30～35°</span>
+              <div style={{ width: '20px', height: '2px', background: '#8B4513', marginRight: '8px' }} />
+              <span style={{ fontSize: '12px' }}>主曲線（10m間隔）</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-              <div style={{ width: '20px', height: '15px', background: '#FF4500', marginRight: '8px', border: '1px solid #ccc' }} />
-              <span style={{ fontSize: '12px' }}>35～40°</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-              <div style={{ width: '20px', height: '15px', background: '#DC143C', marginRight: '8px', border: '1px solid #ccc' }} />
-              <span style={{ fontSize: '12px' }}>40～55°</span>
+              <div style={{ width: '20px', height: '3px', background: '#654321', marginRight: '8px' }} />
+              <span style={{ fontSize: '12px' }}>計曲線（50m間隔）</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: '20px', height: '15px', background: '#FFFF00', marginRight: '8px', border: '1px solid #ccc' }} />
-              <span style={{ fontSize: '12px' }}>55～60°</span>
+              <div style={{ width: '20px', height: '1px', background: '#A0826D', marginRight: '8px' }} />
+              <span style={{ fontSize: '12px' }}>補助曲線（5m間隔）</span>
             </div>
           </div>
           
           <div style={{ fontSize: '10px', color: '#666', marginTop: '8px' }}>
-            出典: 国土地理院 傾斜量区分図<br/>
-            ※30°未満・60°以上は表示されません
+            出典: 国土地理院 等高線<br/>
+            ※ズームレベルにより表示が変わります
           </div>
         </div>
       )}

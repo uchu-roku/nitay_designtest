@@ -1058,7 +1058,7 @@ function App() {
                   </div>
                 )}
                 
-                {/* 傾斜度レイヤー */}
+                {/* 等高線レイヤー */}
                 <div
                   onClick={() => setShowSlope(!showSlope)}
                   style={{
@@ -1077,7 +1077,7 @@ function App() {
                     color: '#333'
                   }}
                 >
-                  <span>傾斜度レイヤー</span>
+                  <span>等高線</span>
                   <div
                     style={{
                       width: '50px',
@@ -1832,7 +1832,7 @@ function App() {
                 </div>
               )}
               
-              {/* 傾斜度レイヤー */}
+              {/* 等高線レイヤー */}
               <div
                 onClick={() => setShowSlope(!showSlope)}
                 style={{
@@ -1851,7 +1851,7 @@ function App() {
                   color: '#333'
                 }}
               >
-                <span>傾斜度レイヤー</span>
+                <span>等高線</span>
                 <div
                   style={{
                     width: '50px',
