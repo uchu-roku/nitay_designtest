@@ -129,60 +129,58 @@ async def get_river_boundaries():
 
 @app.get("/forest-registry/boundaries")
 async def get_forest_registry():
-    """森林簿データを取得（林班・小班）"""
+    """小班ポリゴンデータを取得（Shapefile変換後のGeoJSON）"""
     from fastapi.responses import FileResponse
     from pathlib import Path
     
-    # ベースディレクトリを取得
     base_dir = Path(__file__).parent
+    geojson_path = base_dir / "data" / "administrative" / "rinsyousigen" / "shouhan.geojson"
     
-    # GeoJSONファイルを優先的に使用（高速化のため）
-    geojson_path = base_dir / "data" / "administrative" / "kitamirinsyou" / "forest_registry.geojson"
-    gpkg_path = base_dir / "data" / "administrative" / "kitamirinsyou" / "kitamirinsyou.gpkg"
+    if not geojson_path.exists():
+        raise HTTPException(status_code=404, detail="小班GeoJSONが見つかりません。convert_forest_registry_to_geojson.pyを実行してください。")
     
-    # GeoJSONファイルが存在する場合はそれを返す
-    if geojson_path.exists():
-        print(f"森林簿データを配信（GeoJSON）: {geojson_path}")
-        return FileResponse(
-            str(geojson_path),
-            media_type="application/json",
-            headers={
-                "Access-Control-Allow-Origin": "*",
-                "Cache-Control": "public, max-age=86400"  # 24時間キャッシュ
-            }
-        )
+    print(f"小班GeoJSONを配信: {geojson_path}")
+    return FileResponse(
+        str(geojson_path),
+        media_type="application/json",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=86400"
+        }
+    )
+
+
+@app.get("/api/layers/{keycode14}")
+async def get_layers(keycode14: str):
+    """
+    指定KEYCODEの層データ（複層区分）を取得
+    1対多の層行を全件返す
+    """
+    from pathlib import Path
+    import json
     
-    # GeoJSONがない場合はGPKGから変換
-    if not gpkg_path.exists():
-        raise HTTPException(status_code=404, detail="森林簿データが見つかりません")
+    base_dir = Path(__file__).parent
+    layers_json_path = base_dir / "data" / "administrative" / "rinsyousigen" / "layers_index.json"
     
-    try:
-        import geopandas as gpd
-        import json
-        
-        print(f"森林簿データを読み込み（GPKG）: {gpkg_path}")
-        gdf = gpd.read_file(gpkg_path)
-        
-        # WGS84に変換（Leafletで使用するため）
-        if gdf.crs and gdf.crs.to_epsg() != 4326:
-            print(f"座標系を変換: {gdf.crs} -> EPSG:4326")
-            gdf = gdf.to_crs(epsg=4326)
-        
-        # 必要な属性のみ抽出（個人情報を除外）
-        columns_to_keep = ['林班', '小班', 'GISAREA', 'geometry']
-        available_columns = [col for col in columns_to_keep if col in gdf.columns]
-        gdf_filtered = gdf[available_columns]
-        
-        # GeoJSONに変換
-        geojson = json.loads(gdf_filtered.to_json())
-        
-        print(f"森林簿データ配信: {len(gdf_filtered)}件")
-        
-        return geojson
+    if not layers_json_path.exists():
+        raise HTTPException(status_code=404, detail="層索引JSONが見つかりません。convert_forest_registry_to_geojson.pyを実行してください。")
     
-    except Exception as e:
-        print(f"森林簿データ読み込みエラー: {e}")
-        raise HTTPException(status_code=500, detail=f"森林簿データの読み込みに失敗: {str(e)}")
+    # 層索引を読み込み
+    with open(layers_json_path, 'r', encoding='utf-8') as f:
+        layers_index = json.load(f)
+    
+    # KEYCODEで検索
+    if keycode14 not in layers_index:
+        raise HTTPException(status_code=404, detail=f"KEYCODE {keycode14} に対応する層データが見つかりません")
+    
+    layers = layers_index[keycode14]
+    print(f"層データ取得: KEYCODE={keycode14}, 層数={len(layers)}")
+    
+    return {
+        "keycode": keycode14,
+        "layer_count": len(layers),
+        "layers": layers
+    }
 
 
 @app.get("/image/{file_id}")

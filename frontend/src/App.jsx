@@ -229,6 +229,7 @@ function App() {
   const [showRivers, setShowRivers] = useState(false)
   const [showForestRegistry, setShowForestRegistry] = useState(false)
   const [showSlope, setShowSlope] = useState(false)
+  const [showContour, setShowContour] = useState(false)
   const [forestSearchQuery, setForestSearchQuery] = useState('')
   const [hasShape, setHasShape] = useState(false) // 図形が描画されているか
 
@@ -242,11 +243,12 @@ function App() {
   // プリセット画像リストを取得（MVP版：静的リスト）
   useEffect(() => {
     // MVP版: バックエンドAPIを使わず、静的な画像リストを使用
+    const baseUrl = import.meta.env.BASE_URL || '/'
     const staticImages = [
       {
         id: '02_GE_modified',
         filename: '02_GE_modified.tif',
-        path: '/zaisekiyosokuapp/sample-images/02_GE_modified.png'
+        path: `${baseUrl}sample-images/02_GE_modified.png`
       }
     ]
     setPresetImages(staticImages)
@@ -264,7 +266,8 @@ function App() {
       console.log('プリセット画像を選択:', imageId)
       
       // 画像のパスを設定（publicフォルダ内、PNG形式）
-      const imagePath = `/zaisekiyosokuapp/sample-images/${imageId}.png`
+      const baseUrl = import.meta.env.BASE_URL || '/'
+      const imagePath = `${baseUrl}sample-images/${imageId}.png`
       
       // ファイルIDとして画像パスを使用
       setFileId(imagePath)
@@ -1058,9 +1061,55 @@ function App() {
                   </div>
                 )}
                 
-                {/* 等高線レイヤー */}
+                {/* 陰影起伏図レイヤー */}
                 <div
                   onClick={() => setShowSlope(!showSlope)}
+                  style={{
+                    width: '100%',
+                    background: 'white',
+                    padding: '12px 16px',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '8px',
+                    color: '#333'
+                  }}
+                >
+                  <span>陰影起伏図</span>
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '26px',
+                      background: showSlope ? '#2c5f2d' : '#ccc',
+                      borderRadius: '13px',
+                      position: 'relative',
+                      transition: 'background 0.3s'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '22px',
+                        background: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: showSlope ? '26px' : '2px',
+                        transition: 'left 0.3s',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {/* 等高線レイヤー */}
+                <div
+                  onClick={() => setShowContour(!showContour)}
                   style={{
                     width: '100%',
                     background: 'white',
@@ -1082,7 +1131,7 @@ function App() {
                     style={{
                       width: '50px',
                       height: '26px',
-                      background: showSlope ? '#2c5f2d' : '#ccc',
+                      background: showContour ? '#2c5f2d' : '#ccc',
                       borderRadius: '13px',
                       position: 'relative',
                       transition: 'background 0.3s'
@@ -1096,7 +1145,7 @@ function App() {
                         borderRadius: '50%',
                         position: 'absolute',
                         top: '2px',
-                        left: showSlope ? '26px' : '2px',
+                        left: showContour ? '26px' : '2px',
                         transition: 'left 0.3s',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                       }}
@@ -1832,9 +1881,55 @@ function App() {
                 </div>
               )}
               
-              {/* 等高線レイヤー */}
+              {/* 陰影起伏図レイヤー */}
               <div
                 onClick={() => setShowSlope(!showSlope)}
+                style={{
+                  width: '100%',
+                  background: 'white',
+                  padding: '12px 16px',
+                  border: '2px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '8px',
+                  color: '#333'
+                }}
+              >
+                <span>陰影起伏図</span>
+                <div
+                  style={{
+                    width: '50px',
+                    height: '26px',
+                    background: showSlope ? '#2c5f2d' : '#ccc',
+                    borderRadius: '13px',
+                    position: 'relative',
+                    transition: 'background 0.3s'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '22px',
+                      height: '22px',
+                      background: 'white',
+                      borderRadius: '50%',
+                      position: 'absolute',
+                      top: '2px',
+                      left: showSlope ? '26px' : '2px',
+                      transition: 'left 0.3s',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}
+                  />
+                </div>
+              </div>
+              
+              {/* 等高線レイヤー */}
+              <div
+                onClick={() => setShowContour(!showContour)}
                 style={{
                   width: '100%',
                   background: 'white',
@@ -1856,7 +1951,7 @@ function App() {
                   style={{
                     width: '50px',
                     height: '26px',
-                    background: showSlope ? '#2c5f2d' : '#ccc',
+                    background: showContour ? '#2c5f2d' : '#ccc',
                     borderRadius: '13px',
                     position: 'relative',
                     transition: 'background 0.3s'
@@ -1870,7 +1965,7 @@ function App() {
                       borderRadius: '50%',
                       position: 'absolute',
                       top: '2px',
-                      left: showSlope ? '26px' : '2px',
+                      left: showContour ? '26px' : '2px',
                       transition: 'left 0.3s',
                       boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}
@@ -1990,6 +2085,7 @@ function App() {
           showRivers={showRivers}
           showForestRegistry={showForestRegistry}
           showSlope={showSlope}
+          showContour={showContour}
           forestSearchQuery={forestSearchQuery}
           onDrawModeChange={setDrawMode}
           onForestSearchQueryChange={setForestSearchQuery}

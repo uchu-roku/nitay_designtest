@@ -23,6 +23,7 @@ function Map({
   showRivers,
   showForestRegistry,
   showSlope,
+  showContour,
   forestSearchQuery,
   onDrawModeChange,
   onForestSearchQueryChange,
@@ -44,6 +45,7 @@ function Map({
   const riverLayerRef = useRef(null)
   const forestRegistryLayerRef = useRef(null)
   const slopeLayerRef = useRef(null)
+  const contourLayerRef = useRef(null)
   const sapporoBoundsLayerRef = useRef(null)
   const onAnalyzeRef = useRef(onAnalyze)
   const disabledRef = useRef(disabled)
@@ -969,24 +971,23 @@ function Map({
     const map = mapInstanceRef.current
 
     if (showForestRegistry && !forestRegistryLayerRef.current) {
-      // 森林簿データを読み込み
-      console.log('森林簿データを読み込みます')
-      const baseUrl = import.meta.env.BASE_URL || '/'
-      const forestUrl = `${baseUrl}data/administrative/kitamirinsyou/forest_registry.geojson`
-      console.log('森林簿URL:', forestUrl)
-      fetch(forestUrl)
+      // 小班GeoJSONを読み込み
+      console.log('小班GeoJSONを読み込みます')
+      
+      // バックエンドAPIから取得
+      fetch(`${API_URL}/forest-registry/boundaries`)
         .then(res => {
-          console.log('森林簿レスポンス:', res.status, res.ok)
+          console.log('小班GeoJSONレスポンス:', res.status, res.ok)
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
           return res.json()
         })
         .then(data => {
-          console.log('森林簿データ読み込み完了:', data.features?.length, '件')
+          console.log('小班GeoJSON読み込み完了:', data.features?.length, '件')
           
-          // 森林簿用のカスタムペインを作成（z-indexを制御するため）
+          // 森林簿用のカスタムペインを作成
           if (!map.getPane('forestRegistryPane')) {
             const pane = map.createPane('forestRegistryPane')
-            pane.style.zIndex = 450 // overlayPane(400)より高く、markerPane(600)より低く設定
+            pane.style.zIndex = 450
           }
           
           // GeoJSONレイヤーを追加
@@ -1000,49 +1001,113 @@ function Map({
               fillColor: '#DEB887'
             },
             onEachFeature: (feature, layer) => {
-              // クリックイベントハンドラーを保存
-              const clickHandler = (e) => {
-                console.log('森林簿レイヤークリック, 範囲指定モード:', window.forestRegistryPartialMode)
-                // 範囲指定モードの時はイベントを完全に無視
+              const clickHandler = async (e) => {
+                console.log('小班クリック, 範囲指定モード:', window.forestRegistryPartialMode)
+                
+                // 範囲指定モードの時はイベントを無視
                 if (window.forestRegistryPartialMode) {
                   console.log('範囲指定モード中のため、ポップアップを表示しません')
-                  // イベントの伝播を止める
                   L.DomEvent.stopPropagation(e)
                   L.DomEvent.preventDefault(e)
-                  // ポップアップを閉じる
                   map.closePopup()
-                  // 何もしない
                   return
                 }
                 L.DomEvent.stopPropagation(e)
                 
                 const props = feature.properties
+                const keycode = props['KEYCODE']
                 const bounds = layer.getBounds()
                 
-                console.log('森林簿ポリゴンクリック:', props)
-                console.log('境界:', bounds)
+                console.log('小班クリック:', props)
+                console.log('KEYCODE:', keycode)
                 
-                // ポリゴンの座標を取得
+                // ポリゴン座標を取得
                 let latLngs = layer.getLatLngs()
-                // MultiPolygonの場合は最初のポリゴンの最初のリングを取得
                 while (Array.isArray(latLngs[0]) && latLngs[0].lat === undefined) {
                   latLngs = latLngs[0]
                 }
-                console.log('ポリゴン座標:', latLngs.length, '頂点')
                 
-                // グローバル変数に保存（ポップアップから参照するため）
+                // グローバル変数に保存
                 window.currentForestPolygon = latLngs
                 window.currentForestBounds = bounds
-                window.currentForestRegistryId = `${props['林班']}-${props['小班']}`
+                window.currentForestRegistryId = keycode
+                
+                // 層データをAPIから取得
+                let layersHtml = '<div style="color: #999; font-size: 11px;">層データ読み込み中...</div>'
+                
+                try {
+                  const layersRes = await fetch(`${API_URL}/api/layers/${keycode}`)
+                  if (layersRes.ok) {
+                    const layersData = await layersRes.json()
+                    console.log('層データ取得成功:', layersData)
+                    
+                    // 層一覧を生成
+                    if (layersData.layers && layersData.layers.length > 0) {
+                      layersHtml = `
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;">
+                          <strong>📋 層データ（${layersData.layer_count}層）</strong><br/>
+                          <div style="max-height: 300px; overflow-y: auto; margin-top: 4px;">
+                      `
+                      
+                      layersData.layers.forEach((layer, idx) => {
+                        const fukusou = layer['複層区分コード'] || 'NULL'
+                        const menseki = layer['面積'] || 'N/A'
+                        
+                        // 森林の種類（コード + 名前）
+                        const shinrinCode = layer['森林の種類1コード'] || 'N/A'
+                        const shinrinName = layer['森林の種類1名'] || ''
+                        const shinrin = shinrinName ? `${shinrinCode} (${shinrinName})` : shinrinCode
+                        
+                        // 林種（コード + 名前）
+                        const rinshuCode = layer['林種コード'] || 'N/A'
+                        const rinshuName = layer['林種名'] || ''
+                        const rinshu = rinshuName ? `${rinshuCode} (${rinshuName})` : rinshuCode
+                        
+                        // 樹種（コード + 名前）
+                        const jushuCode = layer['樹種1コード'] || 'N/A'
+                        const jushuName = layer['樹種1名'] || ''
+                        const jushu = jushuName ? `${jushuCode} (${jushuName})` : jushuCode
+                        
+                        const rinrei = layer['林齢'] || 'N/A'
+                        
+                        layersHtml += `
+                          <div style="
+                            background: ${idx % 2 === 0 ? '#f9f9f9' : 'white'};
+                            padding: 8px;
+                            margin: 4px 0;
+                            border-radius: 3px;
+                            font-size: 11px;
+                            border-left: 3px solid #8B4513;
+                          ">
+                            <strong>層${idx + 1}</strong> (複層区分: ${fukusou})<br/>
+                            森林種類: ${shinrin}<br/>
+                            林種: ${rinshu}<br/>
+                            樹種: ${jushu}<br/>
+                            林齢: ${rinrei}年<br/>
+                            面積: ${menseki} ha
+                          </div>
+                        `
+                      })
+                      
+                      layersHtml += '</div></div>'
+                    } else {
+                      layersHtml = '<div style="color: #999; font-size: 11px; margin-top: 8px;">層データなし</div>'
+                    }
+                  } else {
+                    layersHtml = '<div style="color: #d32f2f; font-size: 11px; margin-top: 8px;">層データ取得失敗</div>'
+                  }
+                } catch (err) {
+                  console.error('層データ取得エラー:', err)
+                  layersHtml = '<div style="color: #d32f2f; font-size: 11px; margin-top: 8px;">層データ取得エラー</div>'
+                }
                 
                 // ポップアップを表示
                 const popupContent = `
-                  <div style="font-size: 13px;">
-                    <strong>🌲 林班・小班</strong><br/>
-                    林班: ${props['林班'] || 'N/A'}<br/>
-                    小班: ${props['小班'] || 'N/A'}<br/>
-                    面積: ${props['GISAREA'] || 'N/A'} ha<br/>
-                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                  <div style="font-size: 13px; min-width: 250px;">
+                    <strong>🌲 小班情報</strong><br/>
+                    KEYCODE: ${keycode}<br/>
+                    ${layersHtml}
+                    <div style="display: flex; gap: 8px; margin-top: 12px;">
                       <button 
                         onclick="window.analyzeForestRegistryWhole()"
                         style="
@@ -1078,7 +1143,7 @@ function Map({
                     </div>
                   </div>
                 `
-                layer.bindPopup(popupContent).openPopup()
+                layer.bindPopup(popupContent, { maxWidth: 350 }).openPopup()
               }
               
               // クリックイベントを登録
@@ -1105,21 +1170,67 @@ function Map({
           forestRegistryLayerRef.current = forestLayer
           window.forestRegistryLayer = forestLayer
           
-          // z-indexを確認
           const pane = map.getPane('forestRegistryPane')
-          console.log('森林簿を地図に追加しました。z-index:', pane ? pane.style.zIndex : 'undefined')
+          console.log('小班レイヤーを地図に追加しました。z-index:', pane ? pane.style.zIndex : 'undefined')
         })
         .catch(err => {
-          console.error('森林簿データの読み込みエラー:', err)
+          console.error('小班GeoJSON読み込みエラー:', err)
+          alert('小班データの読み込みに失敗しました。バックエンドAPIが起動しているか確認してください。')
         })
     } else if (!showForestRegistry && forestRegistryLayerRef.current) {
       // 森林簿レイヤーを削除
       map.removeLayer(forestRegistryLayerRef.current)
       forestRegistryLayerRef.current = null
       window.forestRegistryLayer = null
-      console.log('森林簿を非表示にしました')
+      console.log('小班レイヤーを非表示にしました')
     }
   }, [showForestRegistry])
+
+  // 陰影起伏図の表示/非表示
+  useEffect(() => {
+    if (!mapInstanceRef.current) return
+
+    const map = mapInstanceRef.current
+
+    if (showSlope && !slopeLayerRef.current) {
+      console.log('陰影起伏図レイヤーを追加します')
+      
+      // 国土地理院の標高タイル（陰影起伏図）
+      const slopeLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png', {
+        attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
+        opacity: 0.5,
+        maxZoom: 18,
+        maxNativeZoom: 16, // 実際のタイルデータの最大ズーム
+        minZoom: 2,
+        className: 'hillshade-layer'
+      })
+      
+      slopeLayer.on('tileload', (e) => {
+        console.log('陰影起伏図タイル読み込み成功:', e.tile.src)
+      })
+      
+      slopeLayer.on('tileerror', (e) => {
+        console.warn('陰影起伏図タイルエラー:', e.tile.src)
+      })
+      
+      slopeLayer.on('loading', () => {
+        console.log('陰影起伏図レイヤー読み込み開始')
+      })
+      
+      slopeLayer.on('load', () => {
+        console.log('陰影起伏図レイヤー読み込み完了')
+      })
+      
+      slopeLayer.addTo(map)
+      slopeLayerRef.current = slopeLayer
+      console.log('陰影起伏図を地図に追加しました')
+    } else if (!showSlope && slopeLayerRef.current) {
+      // 陰影起伏図レイヤーを削除
+      map.removeLayer(slopeLayerRef.current)
+      slopeLayerRef.current = null
+      console.log('陰影起伏図を非表示にしました')
+    }
+  }, [showSlope])
 
   // 等高線の表示/非表示
   useEffect(() => {
@@ -1127,45 +1238,44 @@ function Map({
 
     const map = mapInstanceRef.current
 
-    if (showSlope && !slopeLayerRef.current) {
+    if (showContour && !contourLayerRef.current) {
       console.log('等高線レイヤーを追加します')
       
-      // 国土地理院の等高線（標高・傾斜度）
-      const slopeLayer = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/contour/{z}/{x}/{y}.png', {
-        attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
-        opacity: 0.7,
-        maxZoom: 18,
-        maxNativeZoom: 17, // 実際のタイルデータの最大ズーム
-        minZoom: 2,
+      // OpenTopoMap（等高線入り地形図）
+      const contourLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+        opacity: 0.6,
+        maxZoom: 17,
+        subdomains: ['a', 'b', 'c'],
         className: 'contour-layer'
       })
       
-      slopeLayer.on('tileload', (e) => {
+      contourLayer.on('tileload', (e) => {
         console.log('等高線タイル読み込み成功:', e.tile.src)
       })
       
-      slopeLayer.on('tileerror', (e) => {
+      contourLayer.on('tileerror', (e) => {
         console.warn('等高線タイルエラー:', e.tile.src)
       })
       
-      slopeLayer.on('loading', () => {
+      contourLayer.on('loading', () => {
         console.log('等高線レイヤー読み込み開始')
       })
       
-      slopeLayer.on('load', () => {
+      contourLayer.on('load', () => {
         console.log('等高線レイヤー読み込み完了')
       })
       
-      slopeLayer.addTo(map)
-      slopeLayerRef.current = slopeLayer
+      contourLayer.addTo(map)
+      contourLayerRef.current = contourLayer
       console.log('等高線を地図に追加しました')
-    } else if (!showSlope && slopeLayerRef.current) {
+    } else if (!showContour && contourLayerRef.current) {
       // 等高線レイヤーを削除
-      map.removeLayer(slopeLayerRef.current)
-      slopeLayerRef.current = null
+      map.removeLayer(contourLayerRef.current)
+      contourLayerRef.current = null
       console.log('等高線を非表示にしました')
     }
-  }, [showSlope])
+  }, [showContour])
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -1261,7 +1371,7 @@ function Map({
         </div>
       )}
       
-      {/* 等高線凡例表示 */}
+      {/* 陰影起伏図凡例表示 */}
       {showSlope && (
         <div
           style={{
@@ -1278,27 +1388,73 @@ function Map({
           }}
         >
           <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '16px', color: '#333' }}>
-            📏 等高線
+            🏔️ 陰影起伏図
           </div>
           
           <div style={{ marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-              <div style={{ width: '20px', height: '2px', background: '#8B4513', marginRight: '8px' }} />
-              <span style={{ fontSize: '12px' }}>主曲線（10m間隔）</span>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
+              <div style={{ 
+                width: '30px', 
+                height: '20px', 
+                background: 'linear-gradient(to right, #fff, #888)', 
+                marginRight: '8px',
+                border: '1px solid #ccc'
+              }} />
+              <span style={{ fontSize: '12px' }}>地形の起伏</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-              <div style={{ width: '20px', height: '3px', background: '#654321', marginRight: '8px' }} />
-              <span style={{ fontSize: '12px' }}>計曲線（50m間隔）</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: '20px', height: '1px', background: '#A0826D', marginRight: '8px' }} />
-              <span style={{ fontSize: '12px' }}>補助曲線（5m間隔）</span>
+            <div style={{ fontSize: '11px', color: '#666', marginLeft: '38px' }}>
+              明るい: 高い地形<br/>
+              暗い: 低い地形
             </div>
           </div>
           
           <div style={{ fontSize: '10px', color: '#666', marginTop: '8px' }}>
-            出典: 国土地理院 等高線<br/>
-            ※ズームレベルにより表示が変わります
+            出典: 国土地理院 陰影起伏図<br/>
+            ※地形の立体感を表現
+          </div>
+        </div>
+      )}
+      
+      {/* 等高線凡例表示 */}
+      {showContour && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '20px',
+            right: (treePoints && treePoints.length > 0 ? '320px' : '80px') + (showSlope ? 220 : 0), // 陰影起伏図の左に配置
+            background: 'rgba(255, 255, 255, 0.95)',
+            padding: '16px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            zIndex: 1000,
+            fontSize: '13px',
+            minWidth: '180px'
+          }}
+        >
+          <div style={{ fontWeight: 'bold', marginBottom: '12px', fontSize: '16px', color: '#333' }}>
+            📏 等高線
+          </div>
+          
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
+              <div style={{ 
+                width: '30px', 
+                height: '20px', 
+                background: 'linear-gradient(135deg, #f5deb3 0%, #8b7355 50%, #4a3728 100%)', 
+                marginRight: '8px',
+                border: '1px solid #ccc'
+              }} />
+              <span style={{ fontSize: '12px' }}>地形図</span>
+            </div>
+            <div style={{ fontSize: '11px', color: '#666', marginLeft: '38px' }}>
+              等高線と地形を表示<br/>
+              茶色の線が等高線
+            </div>
+          </div>
+          
+          <div style={{ fontSize: '10px', color: '#666', marginTop: '8px' }}>
+            出典: OpenTopoMap<br/>
+            ※等高線入り地形図
           </div>
         </div>
       )}
