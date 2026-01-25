@@ -231,7 +231,45 @@ function App() {
   const [showSlope, setShowSlope] = useState(false)
   const [showContour, setShowContour] = useState(false)
   const [forestSearchQuery, setForestSearchQuery] = useState('')
+  const [selectedMunicipalityCode, setSelectedMunicipalityCode] = useState('') // 選択された市町村コード
+  const [municipalityOptions, setMunicipalityOptions] = useState([]) // 市町村コードのリスト
+  const [municipalityNames, setMunicipalityNames] = useState({}) // 市町村コード→名前のマッピング
   const [hasShape, setHasShape] = useState(false) // 図形が描画されているか
+
+  // 市町村コードマスターデータを読み込み
+  useEffect(() => {
+    const loadMunicipalityNames = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/municipality-codes`)
+        if (response.ok) {
+          const data = await response.json()
+          setMunicipalityNames(data)
+          console.log('市町村コードマスターデータ:', data)
+        }
+      } catch (err) {
+        console.error('市町村コードマスターデータの読み込みエラー:', err)
+      }
+    }
+    loadMunicipalityNames()
+  }, [])
+
+  // 森林簿レイヤーが表示されたときに市町村コードリストを取得
+  useEffect(() => {
+    if (showForestRegistry) {
+      // 少し遅延させてレイヤーが読み込まれるのを待つ
+      const timer = setTimeout(() => {
+        if (window.getMunicipalityCodes) {
+          const codes = window.getMunicipalityCodes()
+          console.log('データに存在する市町村コード:', codes)
+          setMunicipalityOptions(codes)
+        }
+      }, 1000) // 500msから1000msに延長
+      return () => clearTimeout(timer)
+    } else {
+      setMunicipalityOptions([])
+      setSelectedMunicipalityCode('')
+    }
+  }, [showForestRegistry])
 
   const handleClearResults = useCallback(() => {
     console.log('解析結果をクリアします')
@@ -511,7 +549,7 @@ function App() {
     }
   }, [chatInput])
 
-  const handleAnalyze = useCallback(async (bounds, polygonCoords = null, registryId = null) => {
+  const handleAnalyze = useCallback(async (bounds, polygonCoords = null, registryId = null, isMultiPolygon = false) => {
     // モードB（画像アップロード）の場合はファイル必須
     if (mode === 'upload' && !fileId) {
       setError('先に画像ファイルをアップロードしてください')
@@ -537,10 +575,18 @@ function App() {
       
       // ポリゴン座標がある場合は追加
       if (polygonCoords && polygonCoords.length > 0) {
-        requestData.polygon_coords = polygonCoords.map(coord => ({
-          lat: coord.lat,
-          lon: coord.lng
-        }))
+        // 複数ポリゴンの場合
+        if (isMultiPolygon) {
+          console.log('複数ポリゴン解析:', polygonCoords.length, '個')
+          requestData.polygon_coords = polygonCoords
+          requestData.is_multi_polygon = true
+        } else {
+          // 単一ポリゴンの場合
+          requestData.polygon_coords = polygonCoords.map(coord => ({
+            lat: coord.lat,
+            lon: coord.lng || coord.lon
+          }))
+        }
       }
       
       // 森林簿IDがある場合は追加
@@ -1019,45 +1065,161 @@ function App() {
                     borderRadius: '4px',
                     marginTop: '8px'
                   }}>
-                    <input
-                      type="text"
-                      placeholder="林班-小班 (例: 0053-0049)"
-                      value={forestSearchQuery}
-                      onChange={(e) => setForestSearchQuery(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && window.handleForestSearch) {
-                          window.handleForestSearch(forestSearchQuery)
-                        }
-                      }}
-                      style={{
-                        width: '100%',
+                    {/* デバッグ情報（一時的） */}
+                    {Object.keys(municipalityNames).length === 0 && (
+                      <div style={{
+                        background: '#fff3cd',
                         padding: '8px',
-                        border: '1px solid #8B4513',
+                        marginBottom: '8px',
                         borderRadius: '4px',
-                        fontSize: '11px',
-                        marginBottom: '8px'
-                      }}
-                    />
+                        fontSize: '10px',
+                        color: '#856404'
+                      }}>
+                        ⚠️ 市町村名データが読み込まれていません。バックエンドが起動しているか確認してください。
+                      </div>
+                    )}
+                    <div style={{ marginBottom: '8px' }}>
+                      <label style={{ fontSize: '10px', color: '#666', display: 'block', marginBottom: '4px' }}>
+                        市町村
+                      </label>
+                      <select
+                        value={selectedMunicipalityCode}
+                        onChange={(e) => setSelectedMunicipalityCode(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #8B4513',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          backgroundColor: 'white',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="">すべて</option>
+                        {municipalityOptions.map(code => (
+                          <option key={code} value={code}>
+                            {code} - {municipalityNames[code] || code}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      <label style={{ fontSize: '10px', color: '#666', display: 'block', marginBottom: '4px' }}>
+                        林班-小班
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="例: 0053-0049, 0054-0001"
+                        value={forestSearchQuery}
+                        onChange={(e) => setForestSearchQuery(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && window.handleForestSearch) {
+                            window.handleForestSearch(forestSearchQuery, selectedMunicipalityCode)
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '8px',
+                          border: '1px solid #8B4513',
+                          borderRadius: '4px',
+                          fontSize: '11px'
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          if (window.handleForestSearch) {
+                            window.handleForestSearch(forestSearchQuery, selectedMunicipalityCode)
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: '#8B4513',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        🔍 検索
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.clearForestSelection) {
+                            window.clearForestSelection()
+                          }
+                          setForestSearchQuery('')
+                          setSelectedMunicipalityCode('')
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          background: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
                     <button
                       onClick={() => {
-                        if (window.handleForestSearch) {
-                          window.handleForestSearch(forestSearchQuery)
+                        if (window.showSelectedForestInfo) {
+                          window.showSelectedForestInfo()
                         }
                       }}
                       style={{
                         width: '100%',
                         padding: '8px',
-                        background: '#8B4513',
+                        background: '#28a745',
                         color: 'white',
                         border: 'none',
                         borderRadius: '4px',
                         fontSize: '11px',
                         fontWeight: 'bold',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        marginTop: '8px'
                       }}
                     >
-                      🔍 検索
+                      📋 選択情報を表示
                     </button>
+                    <button
+                      onClick={() => {
+                        if (window.analyzeSelectedForests) {
+                          window.analyzeSelectedForests()
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        background: '#007bff',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        marginTop: '8px'
+                      }}
+                    >
+                      🔬 選択小班を解析
+                    </button>
+                    <div style={{
+                      fontSize: '10px',
+                      color: '#666',
+                      marginTop: '6px',
+                      lineHeight: '1.4'
+                    }}>
+                      💡 複数指定はカンマ区切り<br/>
+                      クリックでトグル選択可能
+                    </div>
                   </div>
                 )}
                 
@@ -1839,14 +2001,43 @@ function App() {
                   borderRadius: '4px',
                   marginTop: '8px'
                 }}>
-                  <input
-                    type="text"
-                    placeholder="林班-小班 (例: 0053-0049)"
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ fontSize: '10px', color: '#666', display: 'block', marginBottom: '4px' }}>
+                      市町村
+                    </label>
+                    <select
+                      value={selectedMunicipalityCode}
+                      onChange={(e) => setSelectedMunicipalityCode(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid #8B4513',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        backgroundColor: 'white',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="">すべて</option>
+                      {municipalityOptions.map(code => (
+                        <option key={code} value={code}>
+                          {code} - {municipalityNames[code] || code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ fontSize: '10px', color: '#666', display: 'block', marginBottom: '4px' }}>
+                      林班-小班
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="例: 0053-0049, 0054-0001"
                     value={forestSearchQuery}
                     onChange={(e) => setForestSearchQuery(e.target.value)}
                     onKeyPress={(e) => {
                       if (e.key === 'Enter' && window.handleForestSearch) {
-                        window.handleForestSearch(forestSearchQuery)
+                        window.handleForestSearch(forestSearchQuery, selectedMunicipalityCode)
                       }
                     }}
                     style={{
@@ -1854,30 +2045,104 @@ function App() {
                       padding: '8px',
                       border: '1px solid #8B4513',
                       borderRadius: '4px',
-                      fontSize: '11px',
-                      marginBottom: '8px'
+                      fontSize: '11px'
                     }}
                   />
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => {
+                        if (window.handleForestSearch) {
+                          window.handleForestSearch(forestSearchQuery, selectedMunicipalityCode)
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        background: '#8B4513',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      🔍 検索
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.clearForestSelection) {
+                          window.clearForestSelection()
+                        }
+                        setForestSearchQuery('')
+                        setSelectedMunicipalityCode('')
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        background: '#dc3545',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
                   <button
                     onClick={() => {
-                      if (window.handleForestSearch) {
-                        window.handleForestSearch(forestSearchQuery)
+                      if (window.showSelectedForestInfo) {
+                        window.showSelectedForestInfo()
                       }
                     }}
                     style={{
                       width: '100%',
                       padding: '8px',
-                      background: '#8B4513',
+                      background: '#28a745',
                       color: 'white',
                       border: 'none',
                       borderRadius: '4px',
                       fontSize: '11px',
                       fontWeight: 'bold',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      marginTop: '8px'
                     }}
                   >
-                    🔍 検索
+                    📋 選択情報を表示
                   </button>
+                  <button
+                    onClick={() => {
+                      if (window.analyzeSelectedForests) {
+                        window.analyzeSelectedForests()
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      background: '#007bff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      marginTop: '8px'
+                    }}
+                  >
+                    🔬 選択小班を解析
+                  </button>
+                  <div style={{
+                    fontSize: '10px',
+                    color: '#666',
+                    marginTop: '6px',
+                    lineHeight: '1.4'
+                  }}>
+                    💡 複数指定はカンマ区切り<br/>
+                    クリックでトグル選択可能
+                  </div>
                 </div>
               )}
               
@@ -2090,6 +2355,7 @@ function App() {
           onDrawModeChange={setDrawMode}
           onForestSearchQueryChange={setForestSearchQuery}
           onHasShapeChange={setHasShape}
+          municipalityNames={municipalityNames}
         />
       </div>
     </div>

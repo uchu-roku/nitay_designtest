@@ -27,7 +27,8 @@ function Map({
   forestSearchQuery,
   onDrawModeChange,
   onForestSearchQueryChange,
-  onHasShapeChange
+  onHasShapeChange,
+  municipalityNames // 市町村名マッピングを受け取る
 }) {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
@@ -58,6 +59,31 @@ function Map({
 
   // グローバル関数を登録
   useEffect(() => {
+    // 複数選択用のMapをグローバルに保持（JavaScriptのMapオブジェクト）
+    if (!window.highlightedLayersMap) {
+      window.highlightedLayersMap = new window.Map()
+    }
+    
+    // 市町村コードリストを取得する関数
+    window.getMunicipalityCodes = () => {
+      if (!forestRegistryLayerRef.current) {
+        return []
+      }
+      
+      const municipalityCodes = new Set()
+      forestRegistryLayerRef.current.eachLayer((layer) => {
+        const props = layer.feature.properties
+        const keycode = props['KEYCODE']
+        if (keycode && keycode.length >= 4) {
+          // KEYCODEの3-4桁目が市町村コード
+          const munCode = keycode.substring(2, 4)
+          municipalityCodes.add(munCode)
+        }
+      })
+      
+      return Array.from(municipalityCodes).sort()
+    }
+    
     // 図形クリア関数
     window.clearMapShape = () => {
       if (shapeLayerRef.current && mapInstanceRef.current) {
@@ -79,8 +105,264 @@ function Map({
       }
     }
     
-    // 森林簿検索関数
-    window.handleForestSearch = (query) => {
+    // 選択クリア関数（複数選択対応）
+    window.clearForestSelection = () => {
+      if (!mapInstanceRef.current) return
+      
+      const highlightedLayers = window.highlightedLayersMap
+      console.log('選択をクリアします:', highlightedLayers.size, '件')
+      
+      // すべてのハイライトを元に戻す
+      highlightedLayers.forEach((layer) => {
+        layer.setStyle({
+          color: '#8B4513',
+          weight: 2,
+          opacity: 0.7,
+          fillOpacity: 0.15
+        })
+        layer._isHighlighted = false
+      })
+      
+      highlightedLayers.clear()
+      console.log('選択をクリアしました')
+    }
+    
+    // 選択情報を表示する関数
+    window.showSelectedForestInfo = async () => {
+      if (!mapInstanceRef.current) return
+      
+      const highlightedLayers = window.highlightedLayersMap
+      
+      if (highlightedLayers.size === 0) {
+        alert('小班が選択されていません。')
+        return
+      }
+      
+      console.log('選択情報を表示:', highlightedLayers.size, '件')
+      
+      // 選択された小班の情報を収集
+      const selectedInfos = []
+      
+      for (const [keycode, layer] of highlightedLayers) {
+        const props = layer.feature.properties
+        const rinban = props['林班'] || 'N/A'
+        const syouhan = props['小班'] || 'N/A'
+        
+        // KEYCODEから市町村コードを抽出（3-4桁目）
+        const municipalityCode = keycode && keycode.length >= 4 ? keycode.substring(2, 4) : 'N/A'
+        const municipalityName = municipalityNames[municipalityCode] || municipalityCode
+        
+        // 層データを取得
+        let layersHtml = '<div style="color: #999; font-size: 10px;">読込中...</div>'
+        
+        try {
+          const layersRes = await fetch(`${API_URL}/api/layers/${keycode}`)
+          if (layersRes.ok) {
+            const layersData = await layersRes.json()
+            
+            if (layersData.layers && layersData.layers.length > 0) {
+              layersHtml = `<div style="font-size: 10px; margin-top: 4px;">`
+              layersData.layers.forEach((layerData, idx) => {
+                const fukusou = layerData['複層区分コード'] || 'NULL'
+                
+                // 森林の種類（コード + 名前）
+                const shinrinCode = layerData['森林の種類1コード'] || 'N/A'
+                const shinrinName = layerData['森林の種類1名'] || ''
+                const shinrin = shinrinName ? `${shinrinCode} (${shinrinName})` : shinrinCode
+                
+                // 林種（コード + 名前）
+                const rinshuCode = layerData['林種コード'] || 'N/A'
+                const rinshuName = layerData['林種名'] || ''
+                const rinshu = rinshuName ? `${rinshuCode} (${rinshuName})` : rinshuCode
+                
+                // 樹種（コード + 名前）
+                const jushuCode = layerData['樹種1コード'] || 'N/A'
+                const jushuName = layerData['樹種1名'] || ''
+                const jushu = jushuName ? `${jushuCode} (${jushuName})` : jushuCode
+                
+                const rinrei = layerData['林齢'] || 'N/A'
+                const menseki = layerData['面積'] || 'N/A'
+                
+                layersHtml += `
+                  <div style="
+                    background: ${idx % 2 === 0 ? '#f5f5f5' : 'white'};
+                    padding: 6px;
+                    margin: 3px 0;
+                    border-radius: 3px;
+                    font-size: 10px;
+                    border-left: 2px solid #8B4513;
+                  ">
+                    <strong>層${idx + 1}</strong> (複層: ${fukusou})<br/>
+                    森林種類: ${shinrin}<br/>
+                    林種: ${rinshu}<br/>
+                    樹種: ${jushu}<br/>
+                    林齢: ${rinrei}年 / 面積: ${menseki}ha
+                  </div>
+                `
+              })
+              layersHtml += `</div>`
+            } else {
+              layersHtml = '<div style="color: #999; font-size: 10px;">層データなし</div>'
+            }
+          } else {
+            layersHtml = '<div style="color: #d32f2f; font-size: 10px;">取得失敗</div>'
+          }
+        } catch (err) {
+          layersHtml = '<div style="color: #d32f2f; font-size: 10px;">エラー</div>'
+        }
+        
+        selectedInfos.push({
+          rinban,
+          syouhan,
+          keycode,
+          municipalityCode,
+          municipalityName,
+          layersHtml
+        })
+      }
+      
+      // ポップアップの内容を生成
+      let popupContent = `
+        <div style="font-size: 12px; min-width: 350px; max-width: 450px; max-height: 600px; overflow-y: auto;">
+          <div style="
+            background: linear-gradient(135deg, #2c5f2d 0%, #1a3a1b 100%);
+            color: white;
+            padding: 12px;
+            margin: -10px -10px 10px -10px;
+            border-radius: 4px 4px 0 0;
+          ">
+            <strong style="font-size: 14px;">🌲 選択中の小班</strong>
+            <span style="
+              background: rgba(255,255,255,0.2);
+              padding: 2px 8px;
+              border-radius: 10px;
+              margin-left: 8px;
+              font-size: 11px;
+            ">${selectedInfos.length}件</span>
+          </div>
+          <div style="margin-top: 8px;">
+      `
+      
+      selectedInfos.forEach((info, idx) => {
+        popupContent += `
+          <div style="
+            background: ${idx % 2 === 0 ? '#f9f9f9' : 'white'};
+            padding: 10px;
+            margin: 6px 0;
+            border-radius: 4px;
+            border-left: 4px solid #FF4500;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          ">
+            <div style="
+              font-weight: bold;
+              color: #2c5f2d;
+              margin-bottom: 4px;
+              font-size: 13px;
+            ">
+              ${idx + 1}. ${info.municipalityName} - 林班: ${info.rinban} / 小班: ${info.syouhan}
+            </div>
+            <div style="font-size: 9px; color: #999; margin-bottom: 6px;">
+              市町村コード: ${info.municipalityCode} | KEYCODE: ${info.keycode}
+            </div>
+            ${info.layersHtml}
+          </div>
+        `
+      })
+      
+      popupContent += `
+          </div>
+          <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #ddd;">
+            <button 
+              onclick="window.clearForestSelection()"
+              style="
+                width: 100%;
+                padding: 8px;
+                background: #dc3545;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 11px;
+                font-weight: bold;
+              "
+            >
+              選択をクリア
+            </button>
+          </div>
+        </div>
+      `
+      
+      // 地図の中心にポップアップを表示
+      const map = mapInstanceRef.current
+      const center = map.getCenter()
+      
+      L.popup({
+        maxWidth: 400,
+        maxHeight: 600
+      })
+        .setLatLng(center)
+        .setContent(popupContent)
+        .openOn(map)
+    }
+    
+    // 選択した複数小班を解析する関数
+    window.analyzeSelectedForests = () => {
+      if (!mapInstanceRef.current) return
+      
+      const highlightedLayers = window.highlightedLayersMap
+      
+      if (highlightedLayers.size === 0) {
+        alert('小班が選択されていません。')
+        return
+      }
+      
+      console.log('選択した小班を解析:', highlightedLayers.size, '件')
+      
+      // すべての選択された小班のポリゴンを結合
+      const allPolygons = []
+      let minLat = Infinity, maxLat = -Infinity
+      let minLon = Infinity, maxLon = -Infinity
+      
+      highlightedLayers.forEach((layer) => {
+        // ポリゴン座標を取得
+        let latLngs = layer.getLatLngs()
+        while (Array.isArray(latLngs[0]) && latLngs[0].lat === undefined) {
+          latLngs = latLngs[0]
+        }
+        
+        // 座標を配列に変換
+        const coords = latLngs.map(latLng => ({
+          lat: latLng.lat,
+          lng: latLng.lng
+        }))
+        
+        allPolygons.push(coords)
+        
+        // 境界を計算
+        coords.forEach(coord => {
+          minLat = Math.min(minLat, coord.lat)
+          maxLat = Math.max(maxLat, coord.lat)
+          minLon = Math.min(minLon, coord.lng)
+          maxLon = Math.max(maxLon, coord.lng)
+        })
+      })
+      
+      console.log('解析範囲:', { minLat, maxLat, minLon, maxLon })
+      console.log('ポリゴン数:', allPolygons.length)
+      
+      // 境界を作成
+      const bounds = L.latLngBounds(
+        [minLat, minLon],
+        [maxLat, maxLon]
+      )
+      
+      // 解析を実行（複数ポリゴン）
+      // allPolygonsは配列の配列なので、そのまま渡す
+      onAnalyzeRef.current(bounds, allPolygons, null, true)
+    }
+    
+    // 森林簿検索関数（複数ID対応 + 市町村コードフィルタ）
+    window.handleForestSearch = (query, municipalityCode = '') => {
       if (!query || !query.trim() || !forestRegistryLayerRef.current || !mapInstanceRef.current) {
         console.log('検索条件が不足しています')
         return
@@ -88,7 +370,14 @@ function Map({
 
       const map = mapInstanceRef.current
       const searchQuery = query.trim()
-      console.log('森林簿を検索:', searchQuery)
+      const munCode = municipalityCode.trim()
+      console.log('森林簿を検索:', searchQuery, '市町村コード:', munCode)
+
+      // カンマ区切りで複数IDを分割
+      const searchIds = searchQuery.split(',').map(id => id.trim()).filter(id => id.length > 0)
+      console.log('検索ID:', searchIds)
+
+      const highlightedLayers = window.highlightedLayersMap
 
       // 前回のハイライトをクリア
       if (highlightedLayerRef) {
@@ -99,18 +388,49 @@ function Map({
           fillOpacity: 0.15
         })
       }
+      highlightedLayers.forEach((layer) => {
+        layer.setStyle({
+          color: '#8B4513',
+          weight: 2,
+          opacity: 0.7,
+          fillOpacity: 0.15
+        })
+        layer._isHighlighted = false
+      })
+      highlightedLayers.clear()
+
+      const foundBounds = []
 
       // レイヤーを検索
-      let found = false
       forestRegistryLayerRef.current.eachLayer((layer) => {
         const props = layer.feature.properties
-        const rinban = props['林班']
-        const syouhan = props['小班']
-        const id = `${rinban}-${syouhan}`
+        const keycode = props['KEYCODE']
+        const rinban = props['林班'] || ''
+        const syouhan = props['小班'] || ''
+        const rinbanSyouhan = `${rinban}-${syouhan}`
+        
+        // 市町村コードでフィルタ（指定されている場合）
+        if (munCode && keycode && keycode.length >= 4) {
+          // KEYCODEの3-4桁目が市町村コード
+          const layerMunCode = keycode.substring(2, 4)
+          if (layerMunCode !== munCode) {
+            return // 市町村コードが一致しない場合はスキップ
+          }
+        }
+        
+        // 検索IDのいずれかにマッチするかチェック
+        // 林班-小班形式、林班のみ、小班のみ、KEYCODEのいずれかでマッチ
+        const matched = searchIds.some(searchId => {
+          return rinbanSyouhan === searchId || 
+                 rinban === searchId || 
+                 syouhan === searchId ||
+                 keycode === searchId ||
+                 rinbanSyouhan.includes(searchId) ||
+                 searchId.includes(rinbanSyouhan)
+        })
 
-        if (id === searchQuery || rinban === searchQuery || syouhan === searchQuery) {
-          console.log('見つかりました:', id)
-          found = true
+        if (matched) {
+          console.log('見つかりました:', rinbanSyouhan, '(KEYCODE:', keycode, ')')
 
           // ハイライト表示
           layer.setStyle({
@@ -120,22 +440,34 @@ function Map({
             fillOpacity: 0.3,
             fillColor: '#FF4500'
           })
-          setHighlightedLayerRef(layer)
-
-          // ズーム
-          const bounds = layer.getBounds()
-          map.fitBounds(bounds, {
-            padding: [50, 50],
-            maxZoom: 16
-          })
-
-          // ポップアップを表示
-          layer.openPopup()
+          layer._isHighlighted = true
+          
+          highlightedLayers.set(keycode, layer)
+          foundBounds.push(layer.getBounds())
+          
+          // 最初に見つかったレイヤーを保存（後方互換性）
+          if (!highlightedLayerRef) {
+            setHighlightedLayerRef(layer)
+          }
         }
       })
 
-      if (!found) {
-        alert(`林班・小班「${searchQuery}」が見つかりませんでした。\n\n例: 0053-0049`)
+      if (highlightedLayers.size === 0) {
+        alert(`林班・小班「${searchQuery}」が見つかりませんでした。\n\n例: 0053-0049\n複数指定: 0053-0049, 0054-0001`)
+      } else {
+        console.log(`${highlightedLayers.size}件の小班を選択しました`)
+        
+        // 複数選択時は全体を表示
+        if (foundBounds.length > 0) {
+          const combinedBounds = foundBounds.reduce((acc, bounds) => {
+            return acc.extend(bounds)
+          }, L.latLngBounds(foundBounds[0]))
+          
+          map.fitBounds(combinedBounds, {
+            padding: [50, 50],
+            maxZoom: 16
+          })
+        }
       }
     }
 
@@ -143,6 +475,10 @@ function Map({
       delete window.clearMapShape
       delete window.clearMapResults
       delete window.handleForestSearch
+      delete window.clearForestSelection
+      delete window.showSelectedForestInfo
+      delete window.analyzeSelectedForests
+      delete window.getMunicipalityCodes
     }
   }, [highlightedLayerRef])
 
@@ -1021,147 +1357,72 @@ function Map({
                 console.log('小班クリック:', props)
                 console.log('KEYCODE:', keycode)
                 
-                // ポリゴン座標を取得
+                // トグル選択: 既に選択されている場合は解除、そうでなければ追加
+                const highlightedLayers = window.highlightedLayersMap
+                
+                if (highlightedLayers.has(keycode)) {
+                  // 選択解除
+                  console.log('選択解除:', keycode)
+                  layer.setStyle({
+                    color: '#8B4513',
+                    weight: 2,
+                    opacity: 0.7,
+                    fillOpacity: 0.15
+                  })
+                  layer._isHighlighted = false
+                  highlightedLayers.delete(keycode)
+                  console.log('現在の選択数:', highlightedLayers.size)
+                  return // 選択解除したらポップアップは表示しない
+                } else {
+                  // 選択追加
+                  console.log('選択追加:', keycode)
+                  layer.setStyle({
+                    color: '#FF4500',
+                    weight: 4,
+                    opacity: 1,
+                    fillOpacity: 0.3,
+                    fillColor: '#FF4500'
+                  })
+                  layer._isHighlighted = true
+                  highlightedLayers.set(keycode, layer)
+                  console.log('現在の選択数:', highlightedLayers.size)
+                }
+                
+                // ポリゴン座標を取得（解析用に保存）
                 let latLngs = layer.getLatLngs()
                 while (Array.isArray(latLngs[0]) && latLngs[0].lat === undefined) {
                   latLngs = latLngs[0]
                 }
                 
-                // グローバル変数に保存
+                // グローバル変数に保存（解析機能用）
                 window.currentForestPolygon = latLngs
                 window.currentForestBounds = bounds
                 window.currentForestRegistryId = keycode
-                
-                // 層データをAPIから取得
-                let layersHtml = '<div style="color: #999; font-size: 11px;">層データ読み込み中...</div>'
-                
-                try {
-                  const layersRes = await fetch(`${API_URL}/api/layers/${keycode}`)
-                  if (layersRes.ok) {
-                    const layersData = await layersRes.json()
-                    console.log('層データ取得成功:', layersData)
-                    
-                    // 層一覧を生成
-                    if (layersData.layers && layersData.layers.length > 0) {
-                      layersHtml = `
-                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;">
-                          <strong>📋 層データ（${layersData.layer_count}層）</strong><br/>
-                          <div style="max-height: 300px; overflow-y: auto; margin-top: 4px;">
-                      `
-                      
-                      layersData.layers.forEach((layer, idx) => {
-                        const fukusou = layer['複層区分コード'] || 'NULL'
-                        const menseki = layer['面積'] || 'N/A'
-                        
-                        // 森林の種類（コード + 名前）
-                        const shinrinCode = layer['森林の種類1コード'] || 'N/A'
-                        const shinrinName = layer['森林の種類1名'] || ''
-                        const shinrin = shinrinName ? `${shinrinCode} (${shinrinName})` : shinrinCode
-                        
-                        // 林種（コード + 名前）
-                        const rinshuCode = layer['林種コード'] || 'N/A'
-                        const rinshuName = layer['林種名'] || ''
-                        const rinshu = rinshuName ? `${rinshuCode} (${rinshuName})` : rinshuCode
-                        
-                        // 樹種（コード + 名前）
-                        const jushuCode = layer['樹種1コード'] || 'N/A'
-                        const jushuName = layer['樹種1名'] || ''
-                        const jushu = jushuName ? `${jushuCode} (${jushuName})` : jushuCode
-                        
-                        const rinrei = layer['林齢'] || 'N/A'
-                        
-                        layersHtml += `
-                          <div style="
-                            background: ${idx % 2 === 0 ? '#f9f9f9' : 'white'};
-                            padding: 8px;
-                            margin: 4px 0;
-                            border-radius: 3px;
-                            font-size: 11px;
-                            border-left: 3px solid #8B4513;
-                          ">
-                            <strong>層${idx + 1}</strong> (複層区分: ${fukusou})<br/>
-                            森林種類: ${shinrin}<br/>
-                            林種: ${rinshu}<br/>
-                            樹種: ${jushu}<br/>
-                            林齢: ${rinrei}年<br/>
-                            面積: ${menseki} ha
-                          </div>
-                        `
-                      })
-                      
-                      layersHtml += '</div></div>'
-                    } else {
-                      layersHtml = '<div style="color: #999; font-size: 11px; margin-top: 8px;">層データなし</div>'
-                    }
-                  } else {
-                    layersHtml = '<div style="color: #d32f2f; font-size: 11px; margin-top: 8px;">層データ取得失敗</div>'
-                  }
-                } catch (err) {
-                  console.error('層データ取得エラー:', err)
-                  layersHtml = '<div style="color: #d32f2f; font-size: 11px; margin-top: 8px;">層データ取得エラー</div>'
-                }
-                
-                // ポップアップを表示
-                const popupContent = `
-                  <div style="font-size: 13px; min-width: 250px;">
-                    <strong>🌲 小班情報</strong><br/>
-                    KEYCODE: ${keycode}<br/>
-                    ${layersHtml}
-                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                      <button 
-                        onclick="window.analyzeForestRegistryWhole()"
-                        style="
-                          flex: 1;
-                          padding: 6px 12px;
-                          background: #2c5f2d;
-                          color: white;
-                          border: none;
-                          border-radius: 4px;
-                          cursor: pointer;
-                          font-size: 11px;
-                          font-weight: bold;
-                        "
-                      >
-                        まるごと解析
-                      </button>
-                      <button 
-                        onclick="window.analyzeForestRegistryPartial()"
-                        style="
-                          flex: 1;
-                          padding: 6px 12px;
-                          background: #ff8c00;
-                          color: white;
-                          border: none;
-                          border-radius: 4px;
-                          cursor: pointer;
-                          font-size: 11px;
-                          font-weight: bold;
-                        "
-                      >
-                        範囲を指定
-                      </button>
-                    </div>
-                  </div>
-                `
-                layer.bindPopup(popupContent, { maxWidth: 350 }).openPopup()
               }
               
               // クリックイベントを登録
               layer.on('click', clickHandler)
               
-              // ホバー時のスタイル変更
+              // レイヤーに選択状態フラグを追加
+              layer._isHighlighted = false
+              
+              // ホバー時のスタイル変更（選択状態を考慮）
               layer.on('mouseover', () => {
-                layer.setStyle({
-                  fillOpacity: 0.4,
-                  weight: 3
-                })
+                if (!layer._isHighlighted) {
+                  layer.setStyle({
+                    fillOpacity: 0.4,
+                    weight: 3
+                  })
+                }
               })
               
               layer.on('mouseout', () => {
-                layer.setStyle({
-                  fillOpacity: 0.15,
-                  weight: 2
-                })
+                if (!layer._isHighlighted) {
+                  layer.setStyle({
+                    fillOpacity: 0.15,
+                    weight: 2
+                  })
+                }
               })
             }
           })

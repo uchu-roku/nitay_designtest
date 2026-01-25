@@ -183,6 +183,43 @@ async def get_layers(keycode14: str):
     }
 
 
+@app.get("/api/municipality-codes")
+async def get_municipality_codes():
+    """
+    市町村コードのマスターデータを取得
+    """
+    from pathlib import Path
+    import json
+    
+    base_dir = Path(__file__).parent
+    municipality_codes_path = base_dir / "data" / "administrative" / "rinsyousigen" / "municipality_codes.json"
+    
+    if not municipality_codes_path.exists():
+        # ファイルがない場合はデフォルトのマッピングを返す
+        return {
+            "01": "渡島",
+            "02": "檜山",
+            "03": "後志",
+            "04": "空知",
+            "05": "上川",
+            "06": "留萌",
+            "07": "宗谷",
+            "08": "オホーツク",
+            "09": "胆振",
+            "10": "日高",
+            "11": "十勝",
+            "12": "釧路",
+            "13": "根室",
+            "14": "石狩"
+        }
+    
+    # マスターデータを読み込み
+    with open(municipality_codes_path, 'r', encoding='utf-8') as f:
+        municipality_codes = json.load(f)
+    
+    return municipality_codes
+
+
 @app.get("/image/{file_id}")
 async def get_image(file_id: str):
     """アップロードされた画像を取得（ブラウザ表示用にPNGに変換）"""
