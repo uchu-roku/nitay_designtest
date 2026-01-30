@@ -51,3 +51,7 @@ backend/temp/
 .env.local
 .env.*.local
 frontend/.env.local
+
+# Large GeoJSON files (use split versions instead)
+frontend/public/data/administrative/kitamirinsyou/forest_registry.geojson
+backend/data/administrative/rinsyousigen/layers_index.json

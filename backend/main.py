@@ -129,25 +129,70 @@ async def get_river_boundaries():
 
 @app.get("/forest-registry/boundaries")
 async def get_forest_registry():
-    """小班ポリゴンデータを取得（Shapefile変換後のGeoJSON）"""
-    from fastapi.responses import FileResponse
+    """小班ポリゴンデータを取得（分割ファイルから結合）"""
+    from fastapi.responses import JSONResponse
     from pathlib import Path
+    import json
     
-    base_dir = Path(__file__).parent
-    geojson_path = base_dir / "data" / "administrative" / "rinsyousigen" / "shouhan.geojson"
+    base_dir = Path(__file__).parent.parent  # プロジェクトルート
+    split_dir = base_dir / "frontend" / "public" / "data" / "administrative" / "kitamirinsyou" / "split"
     
-    if not geojson_path.exists():
-        raise HTTPException(status_code=404, detail="小班GeoJSONが見つかりません。convert_forest_registry_to_geojson.pyを実行してください。")
+    # 分割ファイルが存在する場合は結合して返す
+    if split_dir.exists():
+        index_path = split_dir / "index.json"
+        if index_path.exists():
+            print("分割ファイルから小班GeoJSONを結合します")
+            
+            try:
+                # インデックスを読み込み
+                with open(index_path, 'r', encoding='utf-8') as f:
+                    index = json.load(f)
+                
+                # 全フィーチャーを結合
+                all_features = []
+                for part_info in index['parts']:
+                    part_file = split_dir / part_info['file']
+                    if part_file.exists():
+                        print(f"読み込み中: {part_info['file']} ({part_info['features']} features)")
+                        with open(part_file, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                            all_features.extend(data['features'])
+                
+                # 結合したGeoJSONを返す
+                merged = {
+                    'type': 'FeatureCollection',
+                    'features': all_features
+                }
+                
+                print(f"結合完了: {len(all_features)} features")
+                
+                return JSONResponse(
+                    content=merged,
+                    headers={
+                        "Access-Control-Allow-Origin": "*",
+                        "Cache-Control": "public, max-age=86400"
+                    }
+                )
+            except Exception as e:
+                print(f"分割ファイルの結合エラー: {e}")
+                # エラー時はフォールバック
     
-    print(f"小班GeoJSONを配信: {geojson_path}")
-    return FileResponse(
-        str(geojson_path),
-        media_type="application/json",
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Cache-Control": "public, max-age=86400"
-        }
-    )
+    # フォールバック: 元のファイルを返す（存在する場合）
+    geojson_path = base_dir / "frontend" / "public" / "data" / "administrative" / "kitamirinsyou" / "forest_registry.geojson"
+    
+    if geojson_path.exists():
+        print(f"元の小班GeoJSONを配信: {geojson_path}")
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            str(geojson_path),
+            media_type="application/json",
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=86400"
+            }
+        )
+    
+    raise HTTPException(status_code=404, detail="小班GeoJSONが見つかりません。")
 
 
 @app.get("/api/layers/{keycode14}")
@@ -160,27 +205,50 @@ async def get_layers(keycode14: str):
     import json
     
     base_dir = Path(__file__).parent
+    
+    # 分割ファイルから読み込み
+    split_dir = base_dir / "data" / "administrative" / "rinsyousigen" / "split"
+    if split_dir.exists():
+        # KEYCODEの最初の5桁（市町村コード）を取得
+        muni_code = keycode14[:5] if len(keycode14) >= 5 else keycode14
+        part_file = split_dir / f"layers_{muni_code}.json"
+        
+        if part_file.exists():
+            print(f"分割ファイルから層データを読み込み: {part_file}")
+            with open(part_file, 'r', encoding='utf-8') as f:
+                layers_index = json.load(f)
+            
+            # KEYCODEで検索
+            if keycode14 in layers_index:
+                layers = layers_index[keycode14]
+                print(f"層データ取得: KEYCODE={keycode14}, 層数={len(layers)}")
+                
+                return {
+                    "keycode": keycode14,
+                    "layer_count": len(layers),
+                    "layers": layers
+                }
+    
+    # フォールバック: 元のファイルを使用
     layers_json_path = base_dir / "data" / "administrative" / "rinsyousigen" / "layers_index.json"
     
-    if not layers_json_path.exists():
-        raise HTTPException(status_code=404, detail="層索引JSONが見つかりません。convert_forest_registry_to_geojson.pyを実行してください。")
+    if layers_json_path.exists():
+        print(f"元のファイルから層データを読み込み: {layers_json_path}")
+        with open(layers_json_path, 'r', encoding='utf-8') as f:
+            layers_index = json.load(f)
+        
+        # KEYCODEで検索
+        if keycode14 in layers_index:
+            layers = layers_index[keycode14]
+            print(f"層データ取得: KEYCODE={keycode14}, 層数={len(layers)}")
+            
+            return {
+                "keycode": keycode14,
+                "layer_count": len(layers),
+                "layers": layers
+            }
     
-    # 層索引を読み込み
-    with open(layers_json_path, 'r', encoding='utf-8') as f:
-        layers_index = json.load(f)
-    
-    # KEYCODEで検索
-    if keycode14 not in layers_index:
-        raise HTTPException(status_code=404, detail=f"KEYCODE {keycode14} に対応する層データが見つかりません")
-    
-    layers = layers_index[keycode14]
-    print(f"層データ取得: KEYCODE={keycode14}, 層数={len(layers)}")
-    
-    return {
-        "keycode": keycode14,
-        "layer_count": len(layers),
-        "layers": layers
-    }
+    raise HTTPException(status_code=404, detail=f"KEYCODE {keycode14} に対応する層データが見つかりません")
 
 
 @app.get("/api/municipality-codes")
