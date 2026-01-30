@@ -1,9 +1,14 @@
-# Git LFS設定 - 大きなデータファイル用（backendのみ）
-backend/**/*.geojson filter=lfs diff=lfs merge=lfs -text
-backend/**/*.gpkg filter=lfs diff=lfs merge=lfs -text
+# Git LFS設定 - 大きなデータファイル用
 *.tif filter=lfs diff=lfs merge=lfs -text
 *.tiff filter=lfs diff=lfs merge=lfs -text
-# frontendのpublicフォルダは通常のGitで管理（GitHub Pages用）
-frontend/public/**/*.geojson !filter !diff !merge text=auto
+
+# GeoJSON と大きなJSONファイルのみLFS管理
 *.geojson filter=lfs diff=lfs merge=lfs -text
-*.json filter=lfs diff=lfs merge=lfs -text
+backend/**/*.json filter=lfs diff=lfs merge=lfs -text
+frontend/public/**/*.json filter=lfs diff=lfs merge=lfs -text
+
+# package.json と package-lock.json は通常のGit管理
+package.json !filter !diff !merge text=auto
+package-lock.json !filter !diff !merge text=auto
+**/package.json !filter !diff !merge text=auto
+**/package-lock.json !filter !diff !merge text=auto
