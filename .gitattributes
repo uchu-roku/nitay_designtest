@@ -3,6 +3,7 @@ backend/**/*.geojson filter=lfs diff=lfs merge=lfs -text
 backend/**/*.gpkg filter=lfs diff=lfs merge=lfs -text
 *.tif filter=lfs diff=lfs merge=lfs -text
 *.tiff filter=lfs diff=lfs merge=lfs -text
-
 # frontendのpublicフォルダは通常のGitで管理（GitHub Pages用）
 frontend/public/**/*.geojson !filter !diff !merge text=auto
+*.geojson filter=lfs diff=lfs merge=lfs -text
+*.json filter=lfs diff=lfs merge=lfs -text

@@ -42,7 +42,7 @@ def load_code_master(excel_path):
     
     # (3) 森林の種類（行14-40付近）
     print("  森林の種類コードを読み込み中...")
-    for i in range(16, 39):  # 行16-38
+    for i in range(14, 40):  # 行14-39に拡張
         if i < len(df):
             code = df.iloc[i, 0]
             name = df.iloc[i, 5]
@@ -50,11 +50,18 @@ def load_code_master(excel_path):
                 code_str = str(code).strip()
                 name_str = str(name).strip()
                 if code_str and name_str:
+                    # 数値コードの場合、0埋めなしバージョンも登録
                     code_masters['森林の種類'][code_str] = name_str
+                    try:
+                        code_no_zero = str(int(float(code_str)))
+                        if code_no_zero != code_str:
+                            code_masters['森林の種類'][code_no_zero] = name_str
+                    except:
+                        pass
     
     # (4) 林種（行41-48付近）
     print("  林種コードを読み込み中...")
-    for i in range(43, 49):  # 行43-48
+    for i in range(41, 50):  # 行41-49に拡張
         if i < len(df):
             code = df.iloc[i, 0]
             name = df.iloc[i, 5]
@@ -62,7 +69,14 @@ def load_code_master(excel_path):
                 code_str = str(code).strip()
                 name_str = str(name).strip()
                 if code_str and name_str:
+                    # 数値コードの場合、0埋めなしバージョンも登録
                     code_masters['林種'][code_str] = name_str
+                    try:
+                        code_no_zero = str(int(float(code_str)))
+                        if code_no_zero != code_str:
+                            code_masters['林種'][code_no_zero] = name_str
+                    except:
+                        pass
     
     # (5) 樹種（行53-84付近、列0+5と列25+30の2箇所）
     print("  樹種コードを読み込み中...")
@@ -114,19 +128,35 @@ def enrich_layer_data(layer_dict, code_masters):
     層データにコードマスタから取得した日本語名を追加
     """
     # 森林の種類1コード
-    if '森林の種類1コード' in layer_dict:
+    if '森林の種類1コード' in layer_dict and layer_dict['森林の種類1コード'] is not None:
         code = str(layer_dict['森林の種類1コード']).strip()
+        # 0埋めなしバージョンも試す
         if code in code_masters['森林の種類']:
             layer_dict['森林の種類1名'] = code_masters['森林の種類'][code]
+        else:
+            try:
+                code_no_zero = str(int(float(code)))
+                if code_no_zero in code_masters['森林の種類']:
+                    layer_dict['森林の種類1名'] = code_masters['森林の種類'][code_no_zero]
+            except:
+                pass
     
     # 林種コード
-    if '林種コード' in layer_dict:
+    if '林種コード' in layer_dict and layer_dict['林種コード'] is not None:
         code = str(layer_dict['林種コード']).strip()
+        # 0埋めなしバージョンも試す
         if code in code_masters['林種']:
             layer_dict['林種名'] = code_masters['林種'][code]
+        else:
+            try:
+                code_no_zero = str(int(float(code)))
+                if code_no_zero in code_masters['林種']:
+                    layer_dict['林種名'] = code_masters['林種'][code_no_zero]
+            except:
+                pass
     
     # 樹種1コード
-    if '樹種1コード' in layer_dict:
+    if '樹種1コード' in layer_dict and layer_dict['樹種1コード'] is not None:
         code = str(layer_dict['樹種1コード']).strip()
         if code in code_masters['樹種']:
             layer_dict['樹種1名'] = code_masters['樹種'][code]

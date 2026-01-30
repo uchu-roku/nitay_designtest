@@ -230,11 +230,56 @@ function App() {
   const [showForestRegistry, setShowForestRegistry] = useState(false)
   const [showSlope, setShowSlope] = useState(false)
   const [showContour, setShowContour] = useState(false)
+  const [slopeOpacity, setSlopeOpacity] = useState(0.6) // 陰影起伏図の透明度
+  const [contourOpacity, setContourOpacity] = useState(0.6) // 等高線の透明度
   const [forestSearchQuery, setForestSearchQuery] = useState('')
   const [selectedMunicipalityCode, setSelectedMunicipalityCode] = useState('') // 選択された市町村コード
   const [municipalityOptions, setMunicipalityOptions] = useState([]) // 市町村コードのリスト
   const [municipalityNames, setMunicipalityNames] = useState({}) // 市町村コード→名前のマッピング
   const [hasShape, setHasShape] = useState(false) // 図形が描画されているか
+  const [sidebarVisible, setSidebarVisible] = useState(true) // サイドバーの表示/非表示
+  const [bottomPanelHeight, setBottomPanelHeight] = useState(100) // 下部パネルの高さ
+  const [isResizing, setIsResizing] = useState(false) // リサイズ中かどうか
+
+  // 下部パネルのリサイズ処理
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (isResizing) {
+        const newHeight = window.innerHeight - e.clientY
+        if (newHeight >= 50 && newHeight <= 500) {
+          setBottomPanelHeight(newHeight)
+        }
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+    }
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'ns-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizing])
+
+  // サイドバーの表示/非表示が変更されたときにマップのサイズを再計算
+  useEffect(() => {
+    if (window.mapInstance) {
+      // アニメーションが完了するまで少し待ってからinvalidateSizeを呼び出す
+      setTimeout(() => {
+        window.mapInstance.invalidateSize()
+      }, 350) // CSSのtransitionが0.3sなので、それより少し長めに設定
+    }
+  }, [sidebarVisible])
 
   // 市町村コードマスターデータを読み込み
   useEffect(() => {
@@ -256,15 +301,30 @@ function App() {
   // 森林簿レイヤーが表示されたときに市町村コードリストを取得
   useEffect(() => {
     if (showForestRegistry) {
-      // 少し遅延させてレイヤーが読み込まれるのを待つ
+      // カスタムイベントリスナーを登録（Map.jsxから通知を受け取る）
+      const handleMunicipalityCodesUpdate = (event) => {
+        const codes = event.detail
+        console.log('市町村コードリストを更新:', codes)
+        setMunicipalityOptions(codes)
+      }
+      
+      window.addEventListener('municipalityCodesUpdated', handleMunicipalityCodesUpdate)
+      
+      // フォールバック: タイマーでも取得を試みる
       const timer = setTimeout(() => {
         if (window.getMunicipalityCodes) {
           const codes = window.getMunicipalityCodes()
-          console.log('データに存在する市町村コード:', codes)
-          setMunicipalityOptions(codes)
+          if (codes.length > 0) {
+            console.log('タイマーで市町村コードを取得:', codes)
+            setMunicipalityOptions(codes)
+          }
         }
-      }, 1000) // 500msから1000msに延長
-      return () => clearTimeout(timer)
+      }, 1500)
+      
+      return () => {
+        window.removeEventListener('municipalityCodesUpdated', handleMunicipalityCodesUpdate)
+        clearTimeout(timer)
+      }
     } else {
       setMunicipalityOptions([])
       setSelectedMunicipalityCode('')
@@ -276,6 +336,26 @@ function App() {
     setResult(null)
     setError(null)
     setForestRegistryId(null)
+  }, [])
+
+  // リセットボタンからのイベントを受け取ってレイヤー表示と森林簿検索を初期化
+  useEffect(() => {
+    const handleResetLayers = () => {
+      console.log('レイヤー表示を初期化します')
+      setShowAdminBoundaries(false)
+      setShowRivers(false)
+      setShowForestRegistry(false)
+      setShowSlope(false)
+      setShowContour(false)
+      setForestSearchQuery('')
+      setSelectedMunicipalityCode('')
+    }
+    
+    window.addEventListener('resetLayers', handleResetLayers)
+    
+    return () => {
+      window.removeEventListener('resetLayers', handleResetLayers)
+    }
   }, [])
 
   // プリセット画像リストを取得（MVP版：静的リスト）
@@ -683,7 +763,31 @@ function App() {
 
   return (
     <div className="app">
-      <div className="sidebar">
+      {/* サイドバートグルボタン */}
+      <button
+        onClick={() => setSidebarVisible(!sidebarVisible)}
+        style={{
+          position: 'fixed',
+          top: '10px',
+          left: sidebarVisible ? '220px' : '10px',
+          zIndex: 1001,
+          background: '#2c5f2d',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          padding: '8px 12px',
+          cursor: 'pointer',
+          fontSize: '18px',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+          transition: 'left 0.3s ease'
+        }}
+        title={sidebarVisible ? 'サイドバーを隠す' : 'サイドバーを表示'}
+      >
+        {sidebarVisible ? '◀' : '▶'}
+      </button>
+
+      {sidebarVisible && (
+        <div className="sidebar">
         <h1>Nitay</h1>
         
         {/* タブ形式のモード選択 */}
@@ -707,7 +811,7 @@ function App() {
               transition: 'all 0.2s'
             }}
           >
-            A: 地図から解析
+            地図から解析
           </button>
           <button
             onClick={() => setMode('upload')}
@@ -724,7 +828,7 @@ function App() {
               transition: 'all 0.2s'
             }}
           >
-            B: 画像から解析
+            画像から解析
           </button>
           <button
             onClick={() => setMode('chatbot')}
@@ -737,11 +841,11 @@ function App() {
               borderBottom: mode === 'chatbot' ? 'none' : '1px solid #ddd',
               cursor: 'pointer',
               fontWeight: mode === 'chatbot' ? 'bold' : 'normal',
-              fontSize: '12px',
+              fontSize: '11px',
               transition: 'all 0.2s'
             }}
           >
-            C: チャットボット
+            チャットボット
           </button>
         </div>
 
@@ -847,169 +951,8 @@ function App() {
                 </p>
               </div>
               
-              {/* 図形クリア・結果クリアボタン */}
-              {(hasShape || (result && result.tree_points && result.tree_points.length > 0)) && (
-                <div className="section">
-                  <h2>クリア操作</h2>
-                  
-                  {hasShape && (
-                    <button
-                      onClick={() => {
-                        // Map.jsxの図形クリア関数を呼び出し
-                        if (window.clearMapShape) {
-                          window.clearMapShape()
-                        }
-                        setHasShape(false)
-                        handleClearResults()
-                      }}
-                      style={{
-                        width: '100%',
-                        background: '#dc3545',
-                        color: 'white',
-                        padding: '10px',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        marginBottom: '8px'
-                      }}
-                    >
-                      <span style={{ fontSize: '14px' }}>🗑️</span>
-                      図形をクリア
-                    </button>
-                  )}
-                  
-                  {!hasShape && result && result.tree_points && result.tree_points.length > 0 && (
-                    <button
-                      onClick={() => {
-                        // Map.jsxの結果クリア関数を呼び出し
-                        if (window.clearMapResults) {
-                          window.clearMapResults()
-                        }
-                        handleClearResults()
-                      }}
-                      style={{
-                        width: '100%',
-                        background: '#dc3545',
-                        color: 'white',
-                        padding: '10px',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <span style={{ fontSize: '14px' }}>🗑️</span>
-                      結果をクリア
-                    </button>
-                  )}
-                </div>
-              )}
-              
               <div className="section">
                 <h2>レイヤー表示</h2>
-                
-                {/* 行政区域レイヤー */}
-                <div
-                  onClick={() => setShowAdminBoundaries(!showAdminBoundaries)}
-                  style={{
-                    width: '100%',
-                    background: 'white',
-                    padding: '12px 16px',
-                    border: '2px solid #ddd',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '8px',
-                    color: '#333'
-                  }}
-                >
-                  <span>行政区域レイヤー</span>
-                  <div
-                    style={{
-                      width: '50px',
-                      height: '26px',
-                      background: showAdminBoundaries ? '#2c5f2d' : '#ccc',
-                      borderRadius: '13px',
-                      position: 'relative',
-                      transition: 'background 0.3s'
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        background: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: showAdminBoundaries ? '26px' : '2px',
-                        transition: 'left 0.3s',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                {/* 河川レイヤー */}
-                <div
-                  onClick={() => setShowRivers(!showRivers)}
-                  style={{
-                    width: '100%',
-                    background: 'white',
-                    padding: '12px 16px',
-                    border: '2px solid #ddd',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '8px',
-                    color: '#333'
-                  }}
-                >
-                  <span>河川レイヤー</span>
-                  <div
-                    style={{
-                      width: '50px',
-                      height: '26px',
-                      background: showRivers ? '#2c5f2d' : '#ccc',
-                      borderRadius: '13px',
-                      position: 'relative',
-                      transition: 'background 0.3s'
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        background: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: showRivers ? '26px' : '2px',
-                        transition: 'left 0.3s',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                    />
-                  </div>
-                </div>
                 
                 {/* 森林簿レイヤー */}
                 <div
@@ -1030,7 +973,7 @@ function App() {
                     color: '#333'
                   }}
                 >
-                  <span>森林簿レイヤー</span>
+                  <span>森林簿</span>
                   <div
                     style={{
                       width: '50px',
@@ -1063,7 +1006,7 @@ function App() {
                     background: '#f5f5f5',
                     padding: '10px',
                     borderRadius: '4px',
-                    marginTop: '8px'
+                    marginBottom: '8px'
                   }}>
                     {/* デバッグ情報（一時的） */}
                     {Object.keys(municipalityNames).length === 0 && (
@@ -1147,27 +1090,6 @@ function App() {
                       >
                         🔍 検索
                       </button>
-                      <button
-                        onClick={() => {
-                          if (window.clearForestSelection) {
-                            window.clearForestSelection()
-                          }
-                          setForestSearchQuery('')
-                          setSelectedMunicipalityCode('')
-                        }}
-                        style={{
-                          padding: '8px 12px',
-                          background: '#dc3545',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 'bold',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        ✕
-                      </button>
                     </div>
                     <button
                       onClick={() => {
@@ -1223,9 +1145,9 @@ function App() {
                   </div>
                 )}
                 
-                {/* 陰影起伏図レイヤー */}
+                {/* 行政区域レイヤー */}
                 <div
-                  onClick={() => setShowSlope(!showSlope)}
+                  onClick={() => setShowAdminBoundaries(!showAdminBoundaries)}
                   style={{
                     width: '100%',
                     background: 'white',
@@ -1242,12 +1164,12 @@ function App() {
                     color: '#333'
                   }}
                 >
-                  <span>陰影起伏図</span>
+                  <span>行政区域</span>
                   <div
                     style={{
                       width: '50px',
                       height: '26px',
-                      background: showSlope ? '#2c5f2d' : '#ccc',
+                      background: showAdminBoundaries ? '#2c5f2d' : '#ccc',
                       borderRadius: '13px',
                       position: 'relative',
                       transition: 'background 0.3s'
@@ -1261,7 +1183,7 @@ function App() {
                         borderRadius: '50%',
                         position: 'absolute',
                         top: '2px',
-                        left: showSlope ? '26px' : '2px',
+                        left: showAdminBoundaries ? '26px' : '2px',
                         transition: 'left 0.3s',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                       }}
@@ -1269,9 +1191,9 @@ function App() {
                   </div>
                 </div>
                 
-                {/* 等高線レイヤー */}
+                {/* 河川レイヤー */}
                 <div
-                  onClick={() => setShowContour(!showContour)}
+                  onClick={() => setShowRivers(!showRivers)}
                   style={{
                     width: '100%',
                     background: 'white',
@@ -1288,12 +1210,12 @@ function App() {
                     color: '#333'
                   }}
                 >
-                  <span>等高線</span>
+                  <span>河川</span>
                   <div
                     style={{
                       width: '50px',
                       height: '26px',
-                      background: showContour ? '#2c5f2d' : '#ccc',
+                      background: showRivers ? '#2c5f2d' : '#ccc',
                       borderRadius: '13px',
                       position: 'relative',
                       transition: 'background 0.3s'
@@ -1307,12 +1229,158 @@ function App() {
                         borderRadius: '50%',
                         position: 'absolute',
                         top: '2px',
-                        left: showContour ? '26px' : '2px',
+                        left: showRivers ? '26px' : '2px',
                         transition: 'left 0.3s',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                       }}
                     />
                   </div>
+                </div>
+                
+                {/* 陰影起伏図レイヤー */}
+                <div style={{ marginBottom: '8px' }}>
+                  <div
+                    onClick={() => setShowSlope(!showSlope)}
+                    style={{
+                      width: '100%',
+                      background: 'white',
+                      padding: '12px 16px',
+                      border: '2px solid #ddd',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      color: '#333'
+                    }}
+                  >
+                    <span>陰影起伏図</span>
+                    <div
+                      style={{
+                        width: '50px',
+                        height: '26px',
+                        background: showSlope ? '#2c5f2d' : '#ccc',
+                        borderRadius: '13px',
+                        position: 'relative',
+                        transition: 'background 0.3s'
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '22px',
+                          height: '22px',
+                          background: 'white',
+                          borderRadius: '50%',
+                          position: 'absolute',
+                          top: '2px',
+                          left: showSlope ? '26px' : '2px',
+                          transition: 'left 0.3s',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* 透明度スライダー */}
+                  {showSlope && (
+                    <div style={{
+                      background: '#f5f5f5',
+                      padding: '10px',
+                      borderRadius: '4px',
+                      marginTop: '4px'
+                    }}>
+                      <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '6px' }}>
+                        透明度: {Math.round((1 - slopeOpacity) * 100)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={(1 - slopeOpacity) * 100}
+                        onChange={(e) => setSlopeOpacity(1 - e.target.value / 100)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          width: '100%',
+                          cursor: 'pointer'
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                {/* 等高線レイヤー */}
+                <div style={{ marginBottom: '8px' }}>
+                  <div
+                    onClick={() => setShowContour(!showContour)}
+                    style={{
+                      width: '100%',
+                      background: 'white',
+                      padding: '12px 16px',
+                      border: '2px solid #ddd',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      color: '#333'
+                    }}
+                  >
+                    <span>等高線</span>
+                    <div
+                      style={{
+                        width: '50px',
+                        height: '26px',
+                        background: showContour ? '#2c5f2d' : '#ccc',
+                        borderRadius: '13px',
+                        position: 'relative',
+                        transition: 'background 0.3s'
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '22px',
+                          height: '22px',
+                          background: 'white',
+                          borderRadius: '50%',
+                          position: 'absolute',
+                          top: '2px',
+                          left: showContour ? '26px' : '2px',
+                          transition: 'left 0.3s',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* 透明度スライダー */}
+                  {showContour && (
+                    <div style={{
+                      background: '#f5f5f5',
+                      padding: '10px',
+                      borderRadius: '4px',
+                      marginTop: '4px'
+                    }}>
+                      <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '6px' }}>
+                        透明度: {Math.round((1 - contourOpacity) * 100)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={(1 - contourOpacity) * 100}
+                        onChange={(e) => setContourOpacity(1 - e.target.value / 100)}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          width: '100%',
+                          cursor: 'pointer'
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </>
@@ -1782,170 +1850,9 @@ function App() {
               </p>
             </div>
             
-            {/* 図形クリア・結果クリアボタン */}
-            {(hasShape || (result && result.tree_points && result.tree_points.length > 0)) && (
-              <div className="section">
-                <h2>クリア操作</h2>
-                
-                {hasShape && (
-                  <button
-                    onClick={() => {
-                      // Map.jsxの図形クリア関数を呼び出し
-                      if (window.clearMapShape) {
-                        window.clearMapShape()
-                      }
-                      setHasShape(false)
-                      handleClearResults()
-                    }}
-                    style={{
-                      width: '100%',
-                      background: '#dc3545',
-                      color: 'white',
-                      padding: '10px',
-                      border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      marginBottom: '8px'
-                    }}
-                  >
-                    <span style={{ fontSize: '14px' }}>🗑️</span>
-                    図形をクリア
-                  </button>
-                )}
-                
-                {!hasShape && result && result.tree_points && result.tree_points.length > 0 && (
-                  <button
-                    onClick={() => {
-                      // Map.jsxの結果クリア関数を呼び出し
-                      if (window.clearMapResults) {
-                        window.clearMapResults()
-                      }
-                      handleClearResults()
-                    }}
-                    style={{
-                      width: '100%',
-                      background: '#dc3545',
-                      color: 'white',
-                      padding: '10px',
-                      border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    <span style={{ fontSize: '14px' }}>🗑️</span>
-                    結果をクリア
-                  </button>
-                )}
-              </div>
-            )}
-
             {/* 3. レイヤー表示 */}
             <div className="section">
               <h2>3. レイヤー表示</h2>
-              
-              {/* 行政区域レイヤー */}
-              <div
-                onClick={() => setShowAdminBoundaries(!showAdminBoundaries)}
-                style={{
-                  width: '100%',
-                  background: 'white',
-                  padding: '12px 16px',
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px',
-                  color: '#333'
-                }}
-              >
-                <span>行政区域レイヤー</span>
-                <div
-                  style={{
-                    width: '50px',
-                    height: '26px',
-                    background: showAdminBoundaries ? '#2c5f2d' : '#ccc',
-                    borderRadius: '13px',
-                    position: 'relative',
-                    transition: 'background 0.3s'
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      background: 'white',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '2px',
-                      left: showAdminBoundaries ? '26px' : '2px',
-                      transition: 'left 0.3s',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}
-                  />
-                </div>
-              </div>
-              
-              {/* 河川レイヤー */}
-              <div
-                onClick={() => setShowRivers(!showRivers)}
-                style={{
-                  width: '100%',
-                  background: 'white',
-                  padding: '12px 16px',
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px',
-                  color: '#333'
-                }}
-              >
-                <span>河川レイヤー</span>
-                <div
-                  style={{
-                    width: '50px',
-                    height: '26px',
-                    background: showRivers ? '#2c5f2d' : '#ccc',
-                    borderRadius: '13px',
-                    position: 'relative',
-                    transition: 'background 0.3s'
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      background: 'white',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '2px',
-                      left: showRivers ? '26px' : '2px',
-                      transition: 'left 0.3s',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}
-                  />
-                </div>
-              </div>
               
               {/* 森林簿レイヤー */}
               <div
@@ -1966,7 +1873,7 @@ function App() {
                   color: '#333'
                 }}
               >
-                <span>森林簿レイヤー</span>
+                <span>森林簿</span>
                 <div
                   style={{
                     width: '50px',
@@ -1999,7 +1906,7 @@ function App() {
                   background: '#f5f5f5',
                   padding: '10px',
                   borderRadius: '4px',
-                  marginTop: '8px'
+                  marginBottom: '8px'
                 }}>
                   <div style={{ marginBottom: '8px' }}>
                     <label style={{ fontSize: '10px', color: '#666', display: 'block', marginBottom: '4px' }}>
@@ -2070,27 +1977,6 @@ function App() {
                     >
                       🔍 検索
                     </button>
-                    <button
-                      onClick={() => {
-                        if (window.clearForestSelection) {
-                          window.clearForestSelection()
-                        }
-                        setForestSearchQuery('')
-                        setSelectedMunicipalityCode('')
-                      }}
-                      style={{
-                        padding: '8px 12px',
-                        background: '#dc3545',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      ✕
-                    </button>
                   </div>
                   <button
                     onClick={() => {
@@ -2146,9 +2032,9 @@ function App() {
                 </div>
               )}
               
-              {/* 陰影起伏図レイヤー */}
+              {/* 行政区域レイヤー */}
               <div
-                onClick={() => setShowSlope(!showSlope)}
+                onClick={() => setShowAdminBoundaries(!showAdminBoundaries)}
                 style={{
                   width: '100%',
                   background: 'white',
@@ -2165,12 +2051,12 @@ function App() {
                   color: '#333'
                 }}
               >
-                <span>陰影起伏図</span>
+                <span>行政区域</span>
                 <div
                   style={{
                     width: '50px',
                     height: '26px',
-                    background: showSlope ? '#2c5f2d' : '#ccc',
+                    background: showAdminBoundaries ? '#2c5f2d' : '#ccc',
                     borderRadius: '13px',
                     position: 'relative',
                     transition: 'background 0.3s'
@@ -2184,7 +2070,7 @@ function App() {
                       borderRadius: '50%',
                       position: 'absolute',
                       top: '2px',
-                      left: showSlope ? '26px' : '2px',
+                      left: showAdminBoundaries ? '26px' : '2px',
                       transition: 'left 0.3s',
                       boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}
@@ -2192,9 +2078,9 @@ function App() {
                 </div>
               </div>
               
-              {/* 等高線レイヤー */}
+              {/* 河川レイヤー */}
               <div
-                onClick={() => setShowContour(!showContour)}
+                onClick={() => setShowRivers(!showRivers)}
                 style={{
                   width: '100%',
                   background: 'white',
@@ -2211,12 +2097,12 @@ function App() {
                   color: '#333'
                 }}
               >
-                <span>等高線</span>
+                <span>河川</span>
                 <div
                   style={{
                     width: '50px',
                     height: '26px',
-                    background: showContour ? '#2c5f2d' : '#ccc',
+                    background: showRivers ? '#2c5f2d' : '#ccc',
                     borderRadius: '13px',
                     position: 'relative',
                     transition: 'background 0.3s'
@@ -2230,12 +2116,158 @@ function App() {
                       borderRadius: '50%',
                       position: 'absolute',
                       top: '2px',
-                      left: showContour ? '26px' : '2px',
+                      left: showRivers ? '26px' : '2px',
                       transition: 'left 0.3s',
                       boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}
                   />
                 </div>
+              </div>
+              
+              {/* 陰影起伏図レイヤー */}
+              <div style={{ marginBottom: '8px' }}>
+                <div
+                  onClick={() => setShowSlope(!showSlope)}
+                  style={{
+                    width: '100%',
+                    background: 'white',
+                    padding: '12px 16px',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    color: '#333'
+                  }}
+                >
+                  <span>陰影起伏図</span>
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '26px',
+                      background: showSlope ? '#2c5f2d' : '#ccc',
+                      borderRadius: '13px',
+                      position: 'relative',
+                      transition: 'background 0.3s'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '22px',
+                        background: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: showSlope ? '26px' : '2px',
+                        transition: 'left 0.3s',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {/* 透明度スライダー */}
+                {showSlope && (
+                  <div style={{
+                    background: '#f5f5f5',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    marginTop: '4px'
+                  }}>
+                    <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '6px' }}>
+                      透明度: {Math.round((1 - slopeOpacity) * 100)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={(1 - slopeOpacity) * 100}
+                      onChange={(e) => setSlopeOpacity(1 - e.target.value / 100)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        width: '100%',
+                        cursor: 'pointer'
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+              
+              {/* 等高線レイヤー */}
+              <div style={{ marginBottom: '8px' }}>
+                <div
+                  onClick={() => setShowContour(!showContour)}
+                  style={{
+                    width: '100%',
+                    background: 'white',
+                    padding: '12px 16px',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    color: '#333'
+                  }}
+                >
+                  <span>等高線</span>
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '26px',
+                      background: showContour ? '#2c5f2d' : '#ccc',
+                      borderRadius: '13px',
+                      position: 'relative',
+                      transition: 'background 0.3s'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '22px',
+                        background: 'white',
+                        borderRadius: '50%',
+                        position: 'absolute',
+                        top: '2px',
+                        left: showContour ? '26px' : '2px',
+                        transition: 'left 0.3s',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {/* 透明度スライダー */}
+                {showContour && (
+                  <div style={{
+                    background: '#f5f5f5',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    marginTop: '4px'
+                  }}>
+                    <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '6px' }}>
+                      透明度: {Math.round((1 - contourOpacity) * 100)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={(1 - contourOpacity) * 100}
+                      onChange={(e) => setContourOpacity(1 - e.target.value / 100)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        width: '100%',
+                        cursor: 'pointer'
+                      }}
+                    />
+                  </div>
+                )}
               </div>
               </div>
             </>
@@ -2248,88 +2280,11 @@ function App() {
               </p>
             </div>
           )}
-
-          {result && (
-          <div className="section result">
-            <h2>解析結果</h2>
-            <div className="result-item">
-              <span className="label">検出本数:</span>
-              <span className="value">{result.tree_count.toLocaleString()}本</span>
-            </div>
-            {result.tree_points && result.tree_points.length > 0 && (
-              <>
-                <div className="result-item">
-                  <span className="label">
-                    <span style={{ 
-                      display: 'inline-block', 
-                      width: '12px', 
-                      height: '12px', 
-                      background: '#2e7d32', 
-                      marginRight: '5px',
-                      borderRadius: '2px'
-                    }}></span>
-                    針葉樹:
-                  </span>
-                  <span className="value">
-                    {result.tree_points.filter(p => p.tree_type === 'coniferous').length.toLocaleString()}本
-                  </span>
-                </div>
-                <div className="result-item">
-                  <span className="label">
-                    <span style={{ 
-                      display: 'inline-block', 
-                      width: '12px', 
-                      height: '12px', 
-                      background: '#8d6e63', 
-                      marginRight: '5px',
-                      borderRadius: '2px'
-                    }}></span>
-                    広葉樹:
-                  </span>
-                  <span className="value">
-                    {result.tree_points.filter(p => p.tree_type === 'broadleaf').length.toLocaleString()}本
-                  </span>
-                </div>
-              </>
-            )}
-            <div className="result-item">
-              <span className="label">材積:</span>
-              <span className="value">{result.volume_m3.toLocaleString()} m³</span>
-            </div>
-            {result.warnings && result.warnings.length > 0 && (
-              <div style={{
-                marginTop: '15px',
-                padding: '10px',
-                background: '#f5f5f5',
-                borderRadius: '4px',
-                fontSize: '11px',
-                color: '#666'
-              }}>
-                {result.warnings.map((w, i) => (
-                  <div key={i} style={{ marginBottom: '5px' }}>{w}</div>
-                ))}
-              </div>
-            )}
-
-          </div>
-          )}
-
-          {error && (
-            <div className="section" style={{
-              background: '#f8d7da',
-              border: '1px solid #dc3545',
-              borderRadius: '4px',
-              padding: '15px'
-            }}>
-              <h3 style={{ color: '#721c24', marginBottom: '8px', fontSize: '13px' }}>エラー</h3>
-              <p style={{ color: '#721c24', fontSize: '12px', margin: 0 }}>
-                {typeof error === 'string' ? error : JSON.stringify(error)}
-              </p>
-            </div>
-          )}
         </div>
       </div>
+      )}
 
+      <div className="main-content">
       <div className="map-container">
         <Map 
           onAnalyze={handleAnalyze} 
@@ -2351,12 +2306,140 @@ function App() {
           showForestRegistry={showForestRegistry}
           showSlope={showSlope}
           showContour={showContour}
+          slopeOpacity={slopeOpacity}
+          contourOpacity={contourOpacity}
           forestSearchQuery={forestSearchQuery}
           onDrawModeChange={setDrawMode}
           onForestSearchQueryChange={setForestSearchQuery}
           onHasShapeChange={setHasShape}
           municipalityNames={municipalityNames}
+          sidebarVisible={sidebarVisible}
         />
+      </div>
+
+      {/* 下部パネル：解析結果とエラー表示 */}
+      {(result || error) && (
+        <div 
+          className="bottom-panel"
+          style={{
+            height: `${bottomPanelHeight}px`,
+            maxHeight: 'none'
+          }}
+        >
+          {/* リサイズハンドル */}
+          <div
+            onMouseDown={() => setIsResizing(true)}
+            style={{
+              height: '8px',
+              background: '#ddd',
+              cursor: 'ns-resize',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderBottom: '1px solid #ccc',
+              position: 'relative'
+            }}
+          >
+            <div style={{
+              width: '40px',
+              height: '4px',
+              background: '#999',
+              borderRadius: '2px'
+            }}></div>
+          </div>
+          
+          <div style={{ overflowY: 'auto', height: 'calc(100% - 8px)' }}>
+          {result && (
+            <div style={{ padding: '12px 20px' }}>
+              <h2 style={{ 
+                fontSize: '14px', 
+                marginBottom: '10px', 
+                color: '#333',
+                borderBottom: '2px solid #2c5f2d',
+                paddingBottom: '6px'
+              }}>解析結果</h2>
+              
+              <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
+                <div className="result-item">
+                  <span className="label">検出本数:</span>
+                  <span className="value">{result.tree_count.toLocaleString()}本</span>
+                </div>
+                
+                {result.tree_points && result.tree_points.length > 0 && (
+                  <>
+                    <div className="result-item">
+                      <span className="label">
+                        <span style={{ 
+                          display: 'inline-block', 
+                          width: '12px', 
+                          height: '12px', 
+                          background: '#2e7d32', 
+                          marginRight: '5px',
+                          borderRadius: '2px'
+                        }}></span>
+                        針葉樹:
+                      </span>
+                      <span className="value">
+                        {result.tree_points.filter(p => p.tree_type === 'coniferous').length.toLocaleString()}本
+                      </span>
+                    </div>
+                    <div className="result-item">
+                      <span className="label">
+                        <span style={{ 
+                          display: 'inline-block', 
+                          width: '12px', 
+                          height: '12px', 
+                          background: '#8d6e63', 
+                          marginRight: '5px',
+                          borderRadius: '2px'
+                        }}></span>
+                        広葉樹:
+                      </span>
+                      <span className="value">
+                        {result.tree_points.filter(p => p.tree_type === 'broadleaf').length.toLocaleString()}本
+                      </span>
+                    </div>
+                  </>
+                )}
+                
+                <div className="result-item">
+                  <span className="label">材積:</span>
+                  <span className="value">{result.volume_m3.toLocaleString()} m³</span>
+                </div>
+              </div>
+              
+              {result.warnings && result.warnings.length > 0 && (
+                <div style={{
+                  marginTop: '15px',
+                  padding: '10px',
+                  background: '#f5f5f5',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  color: '#666'
+                }}>
+                  {result.warnings.map((w, i) => (
+                    <div key={i} style={{ marginBottom: '5px' }}>{w}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <div style={{
+              padding: '12px 20px',
+              background: '#f8d7da',
+              borderTop: '2px solid #dc3545'
+            }}>
+              <h3 style={{ color: '#721c24', marginBottom: '6px', fontSize: '13px' }}>エラー</h3>
+              <p style={{ color: '#721c24', fontSize: '12px', margin: 0 }}>
+                {typeof error === 'string' ? error : JSON.stringify(error)}
+              </p>
+            </div>
+          )}
+          </div>
+        </div>
+      )}
       </div>
     </div>
   )
