@@ -1,0 +1,24 @@
+@import '../styles/tokens.css';
+
+.app-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.app-icon--sm {
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+}
+
+.app-icon--base {
+  width: var(--icon-size-base);
+  height: var(--icon-size-base);
+}
+
+.app-icon--lg {
+  width: var(--icon-size-lg);
+  height: var(--icon-size-lg);
+}

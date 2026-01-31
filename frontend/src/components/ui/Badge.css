@@ -1,0 +1,57 @@
+@import '../../styles/tokens.css';
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-family-sans);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  border: var(--border-width) solid transparent;
+}
+
+/* Sizes */
+.badge--sm {
+  height: 18px;
+  padding: 0 var(--spacing-2);
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-sm);
+}
+
+.badge--base {
+  height: 22px;
+  padding: 0 var(--spacing-2);
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-base);
+}
+
+/* Variants */
+.badge--default {
+  background: var(--color-gray-100);
+  color: var(--text-secondary);
+  border-color: var(--color-gray-200);
+}
+
+.badge--success {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  border-color: var(--color-success);
+}
+
+.badge--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border-color: var(--color-warning);
+}
+
+.badge--error {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border-color: var(--color-error);
+}
+
+.badge--info {
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
+  border-color: var(--color-info);
+}
