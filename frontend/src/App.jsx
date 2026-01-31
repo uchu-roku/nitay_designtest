@@ -771,7 +771,7 @@ function App() {
           top: '10px',
           left: sidebarVisible ? '220px' : '10px',
           zIndex: 1001,
-          background: '#2c5f2d',
+          background: 'var(--color-primary)',
           color: 'white',
           border: 'none',
           borderRadius: '4px',
@@ -794,15 +794,15 @@ function App() {
         <div style={{ 
           display: 'flex', 
           background: 'white',
-          borderBottom: '1px solid #ddd'
+          borderBottom: '1px solid var(--color-surface-border)'
         }}>
           <button
             onClick={() => setMode('map')}
             style={{
               flex: 1,
               padding: '12px 8px',
-              background: mode === 'map' ? '#2c5f2d' : 'white',
-              color: mode === 'map' ? 'white' : '#666',
+                    background: mode === 'map' ? 'var(--color-primary)' : 'var(--color-surface-card)',
+                    color: mode === 'map' ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
               border: 'none',
               borderBottom: mode === 'map' ? 'none' : '1px solid #ddd',
               cursor: 'pointer',
@@ -818,8 +818,8 @@ function App() {
             style={{
               flex: 1,
               padding: '12px 8px',
-              background: mode === 'upload' ? '#2c5f2d' : 'white',
-              color: mode === 'upload' ? 'white' : '#666',
+                    background: mode === 'upload' ? 'var(--color-primary)' : 'var(--color-surface-card)',
+                    color: mode === 'upload' ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
               border: 'none',
               borderBottom: mode === 'upload' ? 'none' : '1px solid #ddd',
               cursor: 'pointer',
@@ -835,8 +835,8 @@ function App() {
             style={{
               flex: 1,
               padding: '12px 8px',
-              background: mode === 'chatbot' ? '#2c5f2d' : 'white',
-              color: mode === 'chatbot' ? 'white' : '#666',
+                    background: mode === 'chatbot' ? 'var(--color-primary)' : 'var(--color-surface-card)',
+                    color: mode === 'chatbot' ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
               border: 'none',
               borderBottom: mode === 'chatbot' ? 'none' : '1px solid #ddd',
               cursor: 'pointer',
@@ -865,10 +865,9 @@ function App() {
                     disabled={drawMode}
                     style={{
                       flex: 1,
-                      background: drawMode && drawType === 'rectangle' ? '#2c5f2d' : 'white',
-                      color: drawMode && drawType === 'rectangle' ? 'white' : '#2c5f2d',
-                      padding: '10px',
-                      border: '2px solid #2c5f2d',
+                    background: drawMode && drawType === 'rectangle' ? 'var(--color-primary)' : 'var(--color-surface-card)',
+                    color: drawMode && drawType === 'rectangle' ? 'var(--color-text-inverse)' : 'var(--color-primary)',
+                    border: '2px solid var(--color-primary)',
                       borderRadius: '4px',
                       fontSize: '12px',
                       fontWeight: 'bold',
@@ -959,9 +958,9 @@ function App() {
                   onClick={() => setShowForestRegistry(!showForestRegistry)}
                   style={{
                     width: '100%',
-                    background: 'white',
+                    background: 'var(--color-surface-card)',
                     padding: '12px 16px',
-                    border: '2px solid #ddd',
+                    border: '2px solid var(--color-surface-border)',
                     borderRadius: '8px',
                     fontSize: '14px',
                     fontWeight: 'bold',
@@ -970,7 +969,7 @@ function App() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     marginBottom: '8px',
-                    color: '#333'
+                    color: 'var(--color-text-primary)'
                   }}
                 >
                   <span>森林簿</span>
@@ -978,7 +977,7 @@ function App() {
                     style={{
                       width: '50px',
                       height: '26px',
-                      background: showForestRegistry ? '#2c5f2d' : '#ccc',
+                      background: showForestRegistry ? 'var(--color-primary)' : 'var(--color-neutral-300)',
                       borderRadius: '13px',
                       position: 'relative',
                       transition: 'background 0.3s'
@@ -1003,12 +1002,12 @@ function App() {
                 {/* 森林簿検索 */}
                 {showForestRegistry && (
                   <div style={{
-                    background: '#f5f5f5',
+                    background: 'var(--color-surface-bg)',
                     padding: '10px',
                     borderRadius: '4px',
                     marginBottom: '8px'
                   }}>
-                    {/* デバッグ情報（一時的） */}
+                    {/* デバッグ情報（一時的�� */}
                     {Object.keys(municipalityNames).length === 0 && (
                       <div style={{
                         background: '#fff3cd',
@@ -1150,9 +1149,9 @@ function App() {
                   onClick={() => setShowAdminBoundaries(!showAdminBoundaries)}
                   style={{
                     width: '100%',
-                    background: 'white',
+                    background: 'var(--color-surface-card)',
                     padding: '12px 16px',
-                    border: '2px solid #ddd',
+                    border: '2px solid var(--color-surface-border)',
                     borderRadius: '8px',
                     fontSize: '14px',
                     fontWeight: 'bold',
@@ -1161,7 +1160,7 @@ function App() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     marginBottom: '8px',
-                    color: '#333'
+                    color: 'var(--color-text-primary)'
                   }}
                 >
                   <span>行政区域</span>
@@ -1169,23 +1168,23 @@ function App() {
                     style={{
                       width: '50px',
                       height: '26px',
-                      background: showAdminBoundaries ? '#2c5f2d' : '#ccc',
+                      background: showAdminBoundaries ? 'var(--color-primary)' : 'var(--color-neutral-300)',
                       borderRadius: '13px',
                       position: 'relative',
-                      transition: 'background 0.3s'
+                      transition: 'background var(--transition-normal)'
                     }}
                   >
                     <div
                       style={{
                         width: '22px',
                         height: '22px',
-                        background: 'white',
+                        background: 'var(--color-surface-card)',
                         borderRadius: '50%',
                         position: 'absolute',
                         top: '2px',
                         left: showAdminBoundaries ? '26px' : '2px',
-                        transition: 'left 0.3s',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        transition: 'left var(--transition-normal)',
+                        boxShadow: 'var(--shadow-sm)'
                       }}
                     />
                   </div>
@@ -1196,9 +1195,9 @@ function App() {
                   onClick={() => setShowRivers(!showRivers)}
                   style={{
                     width: '100%',
-                    background: 'white',
+                    background: 'var(--color-surface-card)',
                     padding: '12px 16px',
-                    border: '2px solid #ddd',
+                    border: '2px solid var(--color-surface-border)',
                     borderRadius: '8px',
                     fontSize: '14px',
                     fontWeight: 'bold',
@@ -1207,7 +1206,7 @@ function App() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     marginBottom: '8px',
-                    color: '#333'
+                    color: 'var(--color-text-primary)'
                   }}
                 >
                   <span>河川</span>
@@ -1215,7 +1214,7 @@ function App() {
                     style={{
                       width: '50px',
                       height: '26px',
-                      background: showRivers ? '#2c5f2d' : '#ccc',
+                    background: showRivers ? 'var(--color-primary)' : 'var(--color-neutral-300)',
                       borderRadius: '13px',
                       position: 'relative',
                       transition: 'background 0.3s'
@@ -1245,7 +1244,7 @@ function App() {
                       width: '100%',
                       background: 'white',
                       padding: '12px 16px',
-                      border: '2px solid #ddd',
+                      border: '2px solid var(--color-surface-border)',
                       borderRadius: '8px',
                       fontSize: '14px',
                       fontWeight: 'bold',
@@ -1261,7 +1260,7 @@ function App() {
                       style={{
                         width: '50px',
                         height: '26px',
-                        background: showSlope ? '#2c5f2d' : '#ccc',
+                        background: showSlope ? 'var(--color-primary)' : 'var(--color-neutral-300)',
                         borderRadius: '13px',
                         position: 'relative',
                         transition: 'background 0.3s'
@@ -1286,7 +1285,7 @@ function App() {
                   {/* 透明度スライダー */}
                   {showSlope && (
                     <div style={{
-                      background: '#f5f5f5',
+                      background: 'var(--color-surface-bg)',
                       padding: '10px',
                       borderRadius: '4px',
                       marginTop: '4px'
@@ -1318,7 +1317,7 @@ function App() {
                       width: '100%',
                       background: 'white',
                       padding: '12px 16px',
-                      border: '2px solid #ddd',
+                      border: '2px solid var(--color-surface-border)',
                       borderRadius: '8px',
                       fontSize: '14px',
                       fontWeight: 'bold',
@@ -1334,7 +1333,7 @@ function App() {
                       style={{
                         width: '50px',
                         height: '26px',
-                        background: showContour ? '#2c5f2d' : '#ccc',
+                        background: showContour ? 'var(--color-primary)' : 'var(--color-neutral-300)',
                         borderRadius: '13px',
                         position: 'relative',
                         transition: 'background 0.3s'
@@ -1359,7 +1358,7 @@ function App() {
                   {/* 透明度スライダー */}
                   {showContour && (
                     <div style={{
-                      background: '#f5f5f5',
+                      background: 'var(--color-surface-bg)',
                       padding: '10px',
                       borderRadius: '4px',
                       marginTop: '4px'
@@ -1399,7 +1398,7 @@ function App() {
             }}>
               <strong style={{ color: '#0d47a1' }}>🤖 チャットボット解析について</strong>
               <p style={{ marginTop: '8px', marginBottom: 0, color: '#0d47a1', lineHeight: '1.6' }}>
-                AIとやり取りしながら解析を実行できます。MVP版ではテスト用の文言で動作確認できます。
+                AIとやり取り��ながら解析を実行できます。MVP版ではテスト用の文言で動作確認できます。
               </p>
             </div>
             
@@ -1538,7 +1537,7 @@ function App() {
                 disabled={analyzing || !chatInput.trim()}
                 style={{
                   padding: '10px 20px',
-                  background: analyzing || !chatInput.trim() ? '#ccc' : '#2c5f2d',
+                    background: analyzing || !chatInput.trim() ? 'var(--color-neutral-300)' : 'var(--color-primary)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
@@ -1731,7 +1730,7 @@ function App() {
                         style={{
                           marginTop: '10px',
                           padding: '8px 16px',
-                          background: '#2c5f2d',
+                          background: 'var(--color-primary)',
                           color: 'white',
                           border: 'none',
                           borderRadius: '4px',
@@ -2132,7 +2131,7 @@ function App() {
                     width: '100%',
                     background: 'white',
                     padding: '12px 16px',
-                    border: '2px solid #ddd',
+                    border: '2px solid var(--color-surface-border)',
                     borderRadius: '8px',
                     fontSize: '14px',
                     fontWeight: 'bold',
@@ -2148,7 +2147,7 @@ function App() {
                     style={{
                       width: '50px',
                       height: '26px',
-                      background: showSlope ? '#2c5f2d' : '#ccc',
+                      background: showSlope ? 'var(--color-primary)' : 'var(--color-neutral-300)',
                       borderRadius: '13px',
                       position: 'relative',
                       transition: 'background 0.3s'
@@ -2173,7 +2172,7 @@ function App() {
                 {/* 透明度スライダー */}
                 {showSlope && (
                   <div style={{
-                    background: '#f5f5f5',
+                    background: 'var(--color-surface-bg)',
                     padding: '10px',
                     borderRadius: '4px',
                     marginTop: '4px'
@@ -2205,7 +2204,7 @@ function App() {
                     width: '100%',
                     background: 'white',
                     padding: '12px 16px',
-                    border: '2px solid #ddd',
+                    border: '2px solid var(--color-surface-border)',
                     borderRadius: '8px',
                     fontSize: '14px',
                     fontWeight: 'bold',
@@ -2221,7 +2220,7 @@ function App() {
                     style={{
                       width: '50px',
                       height: '26px',
-                      background: showContour ? '#2c5f2d' : '#ccc',
+                      background: showContour ? 'var(--color-primary)' : 'var(--color-neutral-300)',
                       borderRadius: '13px',
                       position: 'relative',
                       transition: 'background 0.3s'
@@ -2246,7 +2245,7 @@ function App() {
                 {/* 透明度スライダー */}
                 {showContour && (
                   <div style={{
-                    background: '#f5f5f5',
+                    background: 'var(--color-surface-bg)',
                     padding: '10px',
                     borderRadius: '4px',
                     marginTop: '4px'
@@ -2331,32 +2330,35 @@ function App() {
             onMouseDown={() => setIsResizing(true)}
             style={{
               height: '8px',
-              background: '#ddd',
+              background: 'var(--color-surface-border)',
               cursor: 'ns-resize',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderBottom: '1px solid #ccc',
+              borderBottom: '1px solid var(--color-surface-border)',
               position: 'relative'
             }}
+            aria-label="Resize panel"
           >
             <div style={{
               width: '40px',
               height: '4px',
-              background: '#999',
+              background: 'var(--color-neutral-400)',
               borderRadius: '2px'
             }}></div>
           </div>
           
           <div style={{ overflowY: 'auto', height: 'calc(100% - 8px)' }}>
           {result && (
-            <div style={{ padding: '12px 20px' }}>
+            <div style={{ padding: '16px 20px' }}>
               <h2 style={{ 
-                fontSize: '14px', 
-                marginBottom: '10px', 
-                color: '#333',
-                borderBottom: '2px solid #2c5f2d',
-                paddingBottom: '6px'
+                fontSize: 'var(--font-size-md)', 
+                marginBottom: 'var(--spacing-md)', 
+                color: 'var(--color-text-primary)',
+                borderBottom: '2px solid var(--color-primary)',
+                paddingBottom: 'var(--spacing-sm)',
+                fontWeight: 700,
+                letterSpacing: 'var(--letter-spacing-tight)'
               }}>解析結果</h2>
               
               <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
@@ -2373,9 +2375,9 @@ function App() {
                           display: 'inline-block', 
                           width: '12px', 
                           height: '12px', 
-                          background: '#2e7d32', 
-                          marginRight: '5px',
-                          borderRadius: '2px'
+                          background: 'var(--color-primary-light)', 
+                          marginRight: 'var(--spacing-sm)',
+                          borderRadius: 'var(--radius-xs)'
                         }}></span>
                         針葉樹:
                       </span>
@@ -2389,9 +2391,9 @@ function App() {
                           display: 'inline-block', 
                           width: '12px', 
                           height: '12px', 
-                          background: '#8d6e63', 
-                          marginRight: '5px',
-                          borderRadius: '2px'
+                          background: 'var(--color-accent)', 
+                          marginRight: 'var(--spacing-sm)',
+                          borderRadius: 'var(--radius-xs)'
                         }}></span>
                         広葉樹:
                       </span>
@@ -2409,16 +2411,9 @@ function App() {
               </div>
               
               {result.warnings && result.warnings.length > 0 && (
-                <div style={{
-                  marginTop: '15px',
-                  padding: '10px',
-                  background: '#f5f5f5',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  color: '#666'
-                }}>
+                <div className="warnings">
                   {result.warnings.map((w, i) => (
-                    <div key={i} style={{ marginBottom: '5px' }}>{w}</div>
+                    <div key={i} style={{ marginBottom: 'var(--spacing-sm)' }}>{w}</div>
                   ))}
                 </div>
               )}
@@ -2426,13 +2421,9 @@ function App() {
           )}
 
           {error && (
-            <div style={{
-              padding: '12px 20px',
-              background: '#f8d7da',
-              borderTop: '2px solid #dc3545'
-            }}>
-              <h3 style={{ color: '#721c24', marginBottom: '6px', fontSize: '13px' }}>エラー</h3>
-              <p style={{ color: '#721c24', fontSize: '12px', margin: 0 }}>
+            <div className="error" style={{ padding: 'var(--spacing-lg) var(--spacing-lg)', margin: 'var(--spacing-lg)' }}>
+              <h3 style={{ marginBottom: 'var(--spacing-md)', fontSize: 'var(--font-size-md)' }}>エラー</h3>
+              <p style={{ fontSize: 'var(--font-size-sm)', margin: 0 }}>
                 {typeof error === 'string' ? error : JSON.stringify(error)}
               </p>
             </div>
