@@ -37,69 +37,100 @@ const Sidebar = ({
             <h3 className="panel-title">地図レイヤ</h3>
             
             <div className="layer-group">
-              <div className="layer-item">
-                <label className="layer-label">
-                  <span>行政界</span>
-                  <input
-                    type="checkbox"
-                    className="layer-checkbox"
-                    checked={showAdminBoundaries}
-                    onChange={() => onToggleLayer('admin')}
-                  />
-                  <span className="toggle"></span>
-                </label>
+              <div className="layer-group-header">
+                <span className="layer-group-title">ベースレイヤ</span>
               </div>
               
               <div className="layer-item">
-                <label className="layer-label">
-                  <span>森林簿</span>
-                  <input
-                    type="checkbox"
-                    className="layer-checkbox"
-                    checked={showForestRegistry}
-                    onChange={() => onToggleLayer('forest')}
-                  />
-                  <span className="toggle"></span>
-                </label>
+                <div className="layer-controls">
+                  <button 
+                    className={`visibility-btn ${showAdminBoundaries ? 'visible' : 'hidden'}`}
+                    onClick={() => onToggleLayer('admin')}
+                    title={showAdminBoundaries ? '表示中' : '非表示'}
+                  >
+                    {showAdminBoundaries ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                  <span className="layer-name">行政界</span>
+                </div>
+                <div className="layer-actions">
+                  <button className="layer-menu-btn" title="設定">⚙️</button>
+                </div>
               </div>
               
               <div className="layer-item">
-                <label className="layer-label">
-                  <span>河川</span>
-                  <input
-                    type="checkbox"
-                    className="layer-checkbox"
-                    checked={showRivers}
-                    onChange={() => onToggleLayer('rivers')}
-                  />
-                  <span className="toggle"></span>
-                </label>
+                <div className="layer-controls">
+                  <button 
+                    className={`visibility-btn ${showRivers ? 'visible' : 'hidden'}`}
+                    onClick={() => onToggleLayer('rivers')}
+                    title={showRivers ? '表示中' : '非表示'}
+                  >
+                    {showRivers ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                  <span className="layer-name">河川</span>
+                </div>
+                <div className="layer-actions">
+                  <button className="layer-menu-btn" title="設定">⚙️</button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="layer-group">
+              <div className="layer-group-header">
+                <span className="layer-group-title">森林情報</span>
               </div>
               
               <div className="layer-item">
-                <label className="layer-label">
-                  <span>傾斜</span>
-                  <input
-                    type="checkbox"
-                    className="layer-checkbox"
-                    checked={showSlope}
-                    onChange={() => onToggleLayer('slope')}
-                  />
-                  <span className="toggle"></span>
-                </label>
+                <div className="layer-controls">
+                  <button 
+                    className={`visibility-btn ${showForestRegistry ? 'visible' : 'hidden'}`}
+                    onClick={() => onToggleLayer('forest')}
+                    title={showForestRegistry ? '表示中' : '非表示'}
+                  >
+                    {showForestRegistry ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                  <span className="layer-name">森林簿</span>
+                </div>
+                <div className="layer-actions">
+                  <button className="layer-menu-btn" title="設定">⚙️</button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="layer-group">
+              <div className="layer-group-header">
+                <span className="layer-group-title">地形情報</span>
               </div>
               
               <div className="layer-item">
-                <label className="layer-label">
-                  <span>等高線</span>
-                  <input
-                    type="checkbox"
-                    className="layer-checkbox"
-                    checked={showContour}
-                    onChange={() => onToggleLayer('contour')}
-                  />
-                  <span className="toggle"></span>
-                </label>
+                <div className="layer-controls">
+                  <button 
+                    className={`visibility-btn ${showSlope ? 'visible' : 'hidden'}`}
+                    onClick={() => onToggleLayer('slope')}
+                    title={showSlope ? '表示中' : '非表示'}
+                  >
+                    {showSlope ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                  <span className="layer-name">傾斜図</span>
+                </div>
+                <div className="layer-actions">
+                  <button className="layer-menu-btn" title="設定">⚙️</button>
+                </div>
+              </div>
+              
+              <div className="layer-item">
+                <div className="layer-controls">
+                  <button 
+                    className={`visibility-btn ${showContour ? 'visible' : 'hidden'}`}
+                    onClick={() => onToggleLayer('contour')}
+                    title={showContour ? '表示中' : '非表示'}
+                  >
+                    {showContour ? '👁️' : '👁️‍🗨️'}
+                  </button>
+                  <span className="layer-name">等高線</span>
+                </div>
+                <div className="layer-actions">
+                  <button className="layer-menu-btn" title="設定">⚙️</button>
+                </div>
               </div>
             </div>
             
