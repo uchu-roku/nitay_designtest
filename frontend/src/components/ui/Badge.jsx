@@ -1,7 +1,7 @@
 /**
  * Badge Component
  * 
- * Variants: default | success | warning | error | info
+ * Variants: default | neutral | success | warning | error | info
  * Sizes: sm | base
  */
 

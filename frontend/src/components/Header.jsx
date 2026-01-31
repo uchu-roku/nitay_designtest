@@ -1,4 +1,7 @@
 import React from 'react'
+import AppIcon from './AppIcon'
+import Button from './ui/Button'
+import Input from './ui/Input'
 
 const Header = ({ searchQuery, onSearchChange, onSearchSubmit }) => {
   return (
@@ -9,7 +12,7 @@ const Header = ({ searchQuery, onSearchChange, onSearchSubmit }) => {
       
       <div className="header-center">
         <div className="global-search">
-          <input
+          <Input
             type="text"
             placeholder="林班・小班コードで検索（例: 123-4）"
             value={searchQuery}
@@ -17,24 +20,27 @@ const Header = ({ searchQuery, onSearchChange, onSearchSubmit }) => {
             onKeyDown={(e) => {
               if (e.key === 'Enter') onSearchSubmit()
             }}
-            className="search-input"
+            icon="search"
+            iconPosition="left"
+            size="base"
           />
-          <button onClick={onSearchSubmit} className="search-button">
+          <Button 
+            onClick={onSearchSubmit} 
+            variant="primary" 
+            size="base"
+          >
             検索
-          </button>
+          </Button>
         </div>
       </div>
       
       <div className="header-right">
-        <button className="icon-button" title="通知">
-          <span>🔔</span>
-        </button>
         <button className="icon-button" title="設定">
-          <span>⚙️</span>
+          <AppIcon name="settings" size="md" />
         </button>
-        <div className="user-avatar">
-          <span>👤</span>
-        </div>
+        <button className="icon-button" title="ユーザー">
+          <AppIcon name="user" size="md" />
+        </button>
       </div>
     </header>
   )

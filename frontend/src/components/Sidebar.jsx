@@ -1,4 +1,5 @@
 import React from 'react'
+import AppIcon from './AppIcon'
 
 const Sidebar = ({ 
   activeTab, 
@@ -11,9 +12,9 @@ const Sidebar = ({
   onToggleLayer
 }) => {
   const tabs = [
-    { id: 'layers', label: 'レイヤ', icon: '🗺️' },
-    { id: 'upload', label: 'アップロード', icon: '📁' },
-    { id: 'tools', label: 'ツール', icon: '🔧' },
+    { id: 'layers', label: 'レイヤ', icon: 'layer' },
+    { id: 'upload', label: 'アップロード', icon: 'upload' },
+    { id: 'tools', label: 'ツール', icon: 'settings' },
   ]
 
   return (
@@ -25,7 +26,7 @@ const Sidebar = ({
             className={`nav-item ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => onTabChange(tab.id)}
           >
-            <span className="nav-icon">{tab.icon}</span>
+            <AppIcon name={tab.icon} size="sm" className="nav-icon" />
             <span className="nav-label">{tab.label}</span>
           </button>
         ))}
@@ -48,12 +49,14 @@ const Sidebar = ({
                     onClick={() => onToggleLayer('admin')}
                     title={showAdminBoundaries ? '表示中' : '非表示'}
                   >
-                    {showAdminBoundaries ? '👁️' : '👁️‍🗨️'}
+                    <AppIcon name={showAdminBoundaries ? 'eye' : 'eyeOff'} size="sm" />
                   </button>
                   <span className="layer-name">行政界</span>
                 </div>
                 <div className="layer-actions">
-                  <button className="layer-menu-btn" title="設定">⚙️</button>
+                  <button className="layer-menu-btn" title="設定">
+                    <AppIcon name="settings" size="sm" />
+                  </button>
                 </div>
               </div>
               
@@ -64,12 +67,14 @@ const Sidebar = ({
                     onClick={() => onToggleLayer('rivers')}
                     title={showRivers ? '表示中' : '非表示'}
                   >
-                    {showRivers ? '👁️' : '👁️‍🗨️'}
+                    <AppIcon name={showRivers ? 'eye' : 'eyeOff'} size="sm" />
                   </button>
                   <span className="layer-name">河川</span>
                 </div>
                 <div className="layer-actions">
-                  <button className="layer-menu-btn" title="設定">⚙️</button>
+                  <button className="layer-menu-btn" title="設定">
+                    <AppIcon name="settings" size="sm" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -86,12 +91,14 @@ const Sidebar = ({
                     onClick={() => onToggleLayer('forest')}
                     title={showForestRegistry ? '表示中' : '非表示'}
                   >
-                    {showForestRegistry ? '👁️' : '👁️‍🗨️'}
+                    <AppIcon name={showForestRegistry ? 'eye' : 'eyeOff'} size="sm" />
                   </button>
                   <span className="layer-name">森林簿</span>
                 </div>
                 <div className="layer-actions">
-                  <button className="layer-menu-btn" title="設定">⚙️</button>
+                  <button className="layer-menu-btn" title="設定">
+                    <AppIcon name="settings" size="sm" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -108,12 +115,14 @@ const Sidebar = ({
                     onClick={() => onToggleLayer('slope')}
                     title={showSlope ? '表示中' : '非表示'}
                   >
-                    {showSlope ? '👁️' : '👁️‍🗨️'}
+                    <AppIcon name={showSlope ? 'eye' : 'eyeOff'} size="sm" />
                   </button>
                   <span className="layer-name">傾斜図</span>
                 </div>
                 <div className="layer-actions">
-                  <button className="layer-menu-btn" title="設定">⚙️</button>
+                  <button className="layer-menu-btn" title="設定">
+                    <AppIcon name="settings" size="sm" />
+                  </button>
                 </div>
               </div>
               
@@ -124,12 +133,14 @@ const Sidebar = ({
                     onClick={() => onToggleLayer('contour')}
                     title={showContour ? '表示中' : '非表示'}
                   >
-                    {showContour ? '👁️' : '👁️‍🗨️'}
+                    <AppIcon name={showContour ? 'eye' : 'eyeOff'} size="sm" />
                   </button>
                   <span className="layer-name">等高線</span>
                 </div>
                 <div className="layer-actions">
-                  <button className="layer-menu-btn" title="設定">⚙️</button>
+                  <button className="layer-menu-btn" title="設定">
+                    <AppIcon name="settings" size="sm" />
+                  </button>
                 </div>
               </div>
             </div>

@@ -1,4 +1,7 @@
 import React, { useState } from 'react'
+import AppIcon from './AppIcon'
+import Button from './ui/Button'
+import Badge from './ui/Badge'
 
 const AttributeTable = ({ data, isResizing, onResizeStart }) => {
   const [selectedRows, setSelectedRows] = useState(new Set())
@@ -38,12 +41,12 @@ const AttributeTable = ({ data, isResizing, onResizeStart }) => {
           <h3 className="table-title">属性テーブル</h3>
         </div>
         <div className="table-empty-state">
-          <div className="empty-icon">📊</div>
+          <AppIcon name="table" size="lg" className="empty-icon" />
           <h4 className="empty-title">データがありません</h4>
           <p className="empty-description">
             地図上で地物を選択するか、解析を実行してください
           </p>
-          <button className="empty-action">解析を開始</button>
+          <Button variant="primary" size="base">解析を開始</Button>
         </div>
       </div>
     )
@@ -55,10 +58,10 @@ const AttributeTable = ({ data, isResizing, onResizeStart }) => {
         <div className="resize-handle" onMouseDown={onResizeStart}></div>
         <h3 className="table-title">属性テーブル</h3>
         <div className="table-actions">
-          <span className="table-count">{data.length}件</span>
-          <button className="table-action-btn">フィルタ</button>
-          <button className="table-action-btn">ソート</button>
-          <button className="table-action-btn">CSV出力</button>
+          <Badge variant="neutral">{data.length}件</Badge>
+          <Button variant="ghost" size="sm" icon="filter">フィルタ</Button>
+          <Button variant="ghost" size="sm" icon="refresh">並替</Button>
+          <Button variant="ghost" size="sm" icon="export">CSV出力</Button>
         </div>
       </div>
       
@@ -70,16 +73,36 @@ const AttributeTable = ({ data, isResizing, onResizeStart }) => {
                 <input type="checkbox" />
               </th>
               <th className="col-sortable" onClick={() => handleSort('id')}>
-                ID {sortConfig.key === 'id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                <div className="th-content">
+                  ID 
+                  {sortConfig.key === 'id' && (
+                    <AppIcon name={sortConfig.direction === 'asc' ? 'chevronUp' : 'chevronDown'} size="sm" />
+                  )}
+                </div>
               </th>
               <th className="col-sortable" onClick={() => handleSort('type')}>
-                種別 {sortConfig.key === 'type' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                <div className="th-content">
+                  種別
+                  {sortConfig.key === 'type' && (
+                    <AppIcon name={sortConfig.direction === 'asc' ? 'chevronUp' : 'chevronDown'} size="sm" />
+                  )}
+                </div>
               </th>
-              <th className="col-sortable" onClick={() => handleSort('area')}>
-                面積 {sortConfig.key === 'area' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <th className="col-sortable col-numeric" onClick={() => handleSort('area')}>
+                <div className="th-content">
+                  面積
+                  {sortConfig.key === 'area' && (
+                    <AppIcon name={sortConfig.direction === 'asc' ? 'chevronUp' : 'chevronDown'} size="sm" />
+                  )}
+                </div>
               </th>
-              <th className="col-sortable" onClick={() => handleSort('volume')}>
-                材積 {sortConfig.key === 'volume' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              <th className="col-sortable col-numeric" onClick={() => handleSort('volume')}>
+                <div className="th-content">
+                  材積
+                  {sortConfig.key === 'volume' && (
+                    <AppIcon name={sortConfig.direction === 'asc' ? 'chevronUp' : 'chevronDown'} size="sm" />
+                  )}
+                </div>
               </th>
               <th>樹種</th>
               <th>操作</th>
@@ -92,20 +115,24 @@ const AttributeTable = ({ data, isResizing, onResizeStart }) => {
                 className={selectedRows.has(index) ? 'selected' : ''}
                 onClick={() => handleRowSelect(index)}
               >
-                <td>
+                <td className="col-checkbox">
                   <input 
                     type="checkbox" 
                     checked={selectedRows.has(index)}
                     onChange={() => handleRowSelect(index)}
                   />
                 </td>
-                <td>{row.id || index + 1}</td>
-                <td>{row.tree_type === 'coniferous' ? '針葉樹' : '広葉樹'}</td>
-                <td>{row.area ? `${row.area}ha` : '-'}</td>
-                <td>{row.volume ? `${row.volume}m³` : '-'}</td>
+                <td className="col-code">{row.id || index + 1}</td>
+                <td>
+                  <Badge variant={row.tree_type === 'coniferous' ? 'success' : 'warning'} size="sm">
+                    {row.tree_type === 'coniferous' ? '針葉樹' : '広葉樹'}
+                  </Badge>
+                </td>
+                <td className="col-numeric">{row.area ? `${row.area}ha` : '-'}</td>
+                <td className="col-numeric">{row.volume ? `${row.volume}m³` : '-'}</td>
                 <td>{row.species || 'スギ'}</td>
                 <td>
-                  <button className="row-action">詳細</button>
+                  <Button variant="ghost" size="sm" icon="info">詳細</Button>
                 </td>
               </tr>
             ))}
