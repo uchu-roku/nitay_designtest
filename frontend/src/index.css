@@ -1,93 +1,93 @@
-/* Design Tokens - Sophisticated Forest-Inspired Palette */
+/* Design Tokens - Professional Enterprise Palette */
 :root {
-  /* Primary Colors */
-  --color-primary: #1a5e3f;           /* Deep forest green */
-  --color-primary-light: #2d8659;     /* Medium forest green */
-  --color-primary-lighter: #4a9d6f;   /* Light forest green */
-  --color-primary-lightest: #e8f5f0;  /* Pale mint for backgrounds */
+  /* Primary Colors - Clean Blue */
+  --color-primary: #0066cc;           /* Professional blue */
+  --color-primary-light: #1a73e8;     /* Lighter blue */
+  --color-primary-lighter: #4285f4;   /* Light blue */
+  --color-primary-lightest: #e8f0fe;  /* Very light blue background */
   
   /* Accent Colors */
-  --color-accent: #b8860b;            /* Earth tone - golden brown */
-  --color-accent-light: #d4a574;      /* Light earth tone */
+  --color-accent: #ea4335;            /* Alert red */
+  --color-accent-light: #fbbc04;      /* Warning amber */
   
-  /* Neutrals */
-  --color-neutral-dark: #1a1a1a;      /* Deep charcoal */
-  --color-neutral-600: #4a4a4a;       /* Medium gray */
-  --color-neutral-500: #6b6b6b;       /* Standard gray */
-  --color-neutral-400: #8b8b8b;       /* Light gray */
-  --color-neutral-300: #c5c5c5;       /* Lighter gray */
-  --color-neutral-200: #e8e8e8;       /* Very light gray */
-  --color-neutral-100: #f7f7f7;       /* Almost white */
+  /* Neutrals - Professional Grays */
+  --color-neutral-dark: #202124;      /* Deep charcoal */
+  --color-neutral-600: #3c4043;       /* Medium-dark gray */
+  --color-neutral-500: #5f6368;       /* Medium gray */
+  --color-neutral-400: #80868b;       /* Light-medium gray */
+  --color-neutral-300: #dadce0;       /* Light gray */
+  --color-neutral-200: #ececf1;       /* Very light gray */
+  --color-neutral-100: #f8f9fa;       /* Almost white */
   --color-white: #ffffff;             /* White */
   
   /* Semantic Colors */
-  --color-success: #2d8659;           /* Success green */
-  --color-warning: #d4a574;           /* Warning amber */
-  --color-error: #d1626c;             /* Error red */
-  --color-info: #4a8fb9;              /* Info blue */
+  --color-success: #188038;           /* Success green */
+  --color-warning: #fbbc04;           /* Warning amber */
+  --color-error: #ea4335;             /* Error red */
+  --color-info: #1a73e8;              /* Info blue */
   
   /* Surface Colors */
-  --color-surface-bg: #f7f7f7;
+  --color-surface-bg: #f8f9fa;
   --color-surface-card: #ffffff;
-  --color-surface-hover: #e8f5f0;
-  --color-surface-border: #e8e8e8;
+  --color-surface-hover: #f1f3f4;
+  --color-surface-border: #dadce0;
   
   /* Text Colors */
-  --color-text-primary: #1a1a1a;
-  --color-text-secondary: #6b6b6b;
-  --color-text-tertiary: #8b8b8b;
+  --color-text-primary: #202124;
+  --color-text-secondary: #5f6368;
+  --color-text-tertiary: #80868b;
   --color-text-inverse: #ffffff;
   
   /* Typography */
   --font-family-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
-  --font-family-mono: 'Monaco', 'Courier New', monospace;
+  --font-family-mono: 'Courier New', monospace;
   
-  /* Font Sizes */
+  /* Font Sizes - Minimal hierarchy */
   --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-base: 16px;
-  --font-size-md: 18px;
-  --font-size-lg: 20px;
-  --font-size-xl: 24px;
-  --font-size-2xl: 32px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 15px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
   
   /* Line Heights */
   --line-height-tight: 1.2;
   --line-height-normal: 1.5;
-  --line-height-relaxed: 1.75;
+  --line-height-relaxed: 1.6;
   
   /* Letter Spacing */
-  --letter-spacing-tight: -0.01em;
+  --letter-spacing-tight: -0.005em;
   --letter-spacing-normal: 0;
-  --letter-spacing-wide: 0.05em;
+  --letter-spacing-wide: 0.02em;
   
-  /* Spacing */
+  /* Spacing - Refined scale */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 12px;
   --spacing-lg: 16px;
-  --spacing-xl: 24px;
-  --spacing-2xl: 32px;
-  --spacing-3xl: 48px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
   
-  /* Border Radius */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Border Radius - Minimal rounding */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   
-  /* Shadows */
+  /* Shadows - Subtle, professional */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.15);
-  --shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.18);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.15);
   
-  /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Transitions - Smooth, not distracting */
+  --transition-fast: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -110,6 +110,7 @@ body {
   line-height: var(--line-height-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-weight: 400;
 }
 
 #root {
@@ -120,20 +121,4 @@ body {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }

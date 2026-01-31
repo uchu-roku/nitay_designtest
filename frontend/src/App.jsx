@@ -801,8 +801,11 @@ function App() {
             style={{
               flex: 1,
               padding: '12px 8px',
-                    background: mode === 'map' ? 'var(--color-primary)' : 'var(--color-surface-card)',
+                    background: mode === 'map' ? 'var(--color-primary)' : 'var(--color-surface-bg)',
                     color: mode === 'map' ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                    border: 'none',
+                    fontWeight: '500',
+                    fontSize: 'var(--font-size-sm)',
               border: 'none',
               borderBottom: mode === 'map' ? 'none' : '1px solid #ddd',
               cursor: 'pointer',
@@ -818,8 +821,11 @@ function App() {
             style={{
               flex: 1,
               padding: '12px 8px',
-                    background: mode === 'upload' ? 'var(--color-primary)' : 'var(--color-surface-card)',
+                    background: mode === 'upload' ? 'var(--color-primary)' : 'var(--color-surface-bg)',
                     color: mode === 'upload' ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                    border: 'none',
+                    fontWeight: '500',
+                    fontSize: 'var(--font-size-sm)',
               border: 'none',
               borderBottom: mode === 'upload' ? 'none' : '1px solid #ddd',
               cursor: 'pointer',
@@ -835,8 +841,11 @@ function App() {
             style={{
               flex: 1,
               padding: '12px 8px',
-                    background: mode === 'chatbot' ? 'var(--color-primary)' : 'var(--color-surface-card)',
+                    background: mode === 'chatbot' ? 'var(--color-primary)' : 'var(--color-surface-bg)',
                     color: mode === 'chatbot' ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                    border: 'none',
+                    fontWeight: '500',
+                    fontSize: 'var(--font-size-sm)',
               border: 'none',
               borderBottom: mode === 'chatbot' ? 'none' : '1px solid #ddd',
               cursor: 'pointer',
@@ -959,17 +968,18 @@ function App() {
                   style={{
                     width: '100%',
                     background: 'var(--color-surface-card)',
-                    padding: '12px 16px',
-                    border: '2px solid var(--color-surface-border)',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
+                    padding: 'var(--spacing-md) var(--spacing-lg)',
+                    border: '1px solid var(--color-surface-border)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: '500',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: '8px',
-                    color: 'var(--color-text-primary)'
+                    marginBottom: 'var(--spacing-md)',
+                    color: 'var(--color-text-primary)',
+                    transition: 'all var(--transition-fast)'
                   }}
                 >
                   <span>森林簿</span>
@@ -1150,17 +1160,18 @@ function App() {
                   style={{
                     width: '100%',
                     background: 'var(--color-surface-card)',
-                    padding: '12px 16px',
-                    border: '2px solid var(--color-surface-border)',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
+                    padding: 'var(--spacing-md) var(--spacing-lg)',
+                    border: '1px solid var(--color-surface-border)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: '500',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: '8px',
-                    color: 'var(--color-text-primary)'
+                    marginBottom: 'var(--spacing-md)',
+                    color: 'var(--color-text-primary)',
+                    transition: 'all var(--transition-fast)'
                   }}
                 >
                   <span>行政区域</span>
@@ -1169,9 +1180,13 @@ function App() {
                       width: '50px',
                       height: '26px',
                       background: showAdminBoundaries ? 'var(--color-primary)' : 'var(--color-neutral-300)',
-                      borderRadius: '13px',
+                      borderRadius: '12px',
                       position: 'relative',
-                      transition: 'background var(--transition-normal)'
+                      transition: 'background var(--transition-normal)',
+                      cursor: 'pointer',
+                      width: '44px',
+                      height: '24px',
+                      padding: '0',
                     }}
                   >
                     <div
@@ -1182,9 +1197,11 @@ function App() {
                         borderRadius: '50%',
                         position: 'absolute',
                         top: '2px',
-                        left: showAdminBoundaries ? '26px' : '2px',
+                        left: showAdminBoundaries ? '22px' : '2px',
                         transition: 'left var(--transition-normal)',
-                        boxShadow: 'var(--shadow-sm)'
+                        boxShadow: 'var(--shadow-xs)',
+                        width: '20px',
+                        height: '20px',
                       }}
                     />
                   </div>
@@ -1196,17 +1213,18 @@ function App() {
                   style={{
                     width: '100%',
                     background: 'var(--color-surface-card)',
-                    padding: '12px 16px',
-                    border: '2px solid var(--color-surface-border)',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
+                    padding: 'var(--spacing-md) var(--spacing-lg)',
+                    border: '1px solid var(--color-surface-border)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: '500',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: '8px',
-                    color: 'var(--color-text-primary)'
+                    marginBottom: 'var(--spacing-md)',
+                    color: 'var(--color-text-primary)',
+                    transition: 'all var(--transition-fast)'
                   }}
                 >
                   <span>河川</span>
@@ -1575,7 +1593,7 @@ function App() {
                   <li><strong>撮影角度:</strong> 25-30°以下（最低35°）</li>
                 </ul>
                 <p style={{ marginTop: '8px', fontSize: '11px', color: '#856404' }}>
-                  ※ 品質が低いと検出精度が低下します
+                  ※ 品質が低いと検出��度が低下します
                 </p>
               </div>
               
@@ -1746,7 +1764,7 @@ function App() {
               )}
             </div>
 
-            {/* 2. 範囲を指定（地図上で範囲を指定するか、森林簿から小班を選択） */}
+            {/* 2. 範囲を指定（地図上で範囲を指定するか、森林簿か���小班を選択） */}
             <div className="section">
               <h2>2. 範囲を指定</h2>
               
@@ -1761,8 +1779,8 @@ function App() {
                   disabled={drawMode}
                   style={{
                     flex: 1,
-                    background: drawMode && drawType === 'rectangle' ? '#2c5f2d' : 'white',
-                    color: drawMode && drawType === 'rectangle' ? 'white' : '#2c5f2d',
+                    background: drawMode && drawType === 'rectangle' ? 'var(--color-primary)' : 'var(--color-surface-card)',
+                    color: drawMode && drawType === 'rectangle' ? 'var(--color-text-inverse)' : 'var(--color-primary)',
                     padding: '10px',
                     border: '2px solid #2c5f2d',
                     borderRadius: '4px',
@@ -2348,17 +2366,18 @@ function App() {
             }}></div>
           </div>
           
-          <div style={{ overflowY: 'auto', height: 'calc(100% - 8px)' }}>
+          <div style={{ overflowY: 'auto', height: 'calc(100% - 8px)', padding: 'var(--spacing-lg)' }}>
           {result && (
-            <div style={{ padding: '16px 20px' }}>
+            <div>
               <h2 style={{ 
                 fontSize: 'var(--font-size-md)', 
-                marginBottom: 'var(--spacing-md)', 
+                marginBottom: 'var(--spacing-lg)', 
                 color: 'var(--color-text-primary)',
-                borderBottom: '2px solid var(--color-primary)',
-                paddingBottom: 'var(--spacing-sm)',
-                fontWeight: 700,
-                letterSpacing: 'var(--letter-spacing-tight)'
+                borderBottom: '1px solid var(--color-surface-border)',
+                paddingBottom: 'var(--spacing-md)',
+                fontWeight: '600',
+                letterSpacing: 'var(--letter-spacing-normal)',
+                margin: '0 0 var(--spacing-lg) 0'
               }}>解析結果</h2>
               
               <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
@@ -2373,9 +2392,9 @@ function App() {
                       <span className="label">
                         <span style={{ 
                           display: 'inline-block', 
-                          width: '12px', 
-                          height: '12px', 
-                          background: 'var(--color-primary-light)', 
+                          width: '10px', 
+                          height: '10px', 
+                          background: 'var(--color-primary)', 
                           marginRight: 'var(--spacing-sm)',
                           borderRadius: 'var(--radius-xs)'
                         }}></span>
@@ -2389,9 +2408,9 @@ function App() {
                       <span className="label">
                         <span style={{ 
                           display: 'inline-block', 
-                          width: '12px', 
-                          height: '12px', 
-                          background: 'var(--color-accent)', 
+                          width: '10px', 
+                          height: '10px', 
+                          background: 'var(--color-accent-light)', 
                           marginRight: 'var(--spacing-sm)',
                           borderRadius: 'var(--radius-xs)'
                         }}></span>
