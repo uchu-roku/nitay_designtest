@@ -1,18 +1,35 @@
 /**
- * AppIcon Component
+ * AppIcon Component - 規約強制版
  * 
- * Single source of truth for all icons in the application
- * RULE: All icons MUST use this component (no direct emoji/svg)
+ * 単一のアイコン管理コンポーネント
+ * 規約：全アイコンはこのコンポーネント経由のみ（直接 react-icons 禁止）
  * 
  * Props:
- * - name: Icon identifier (string)
- * - size: 'sm' | 'base' | 'lg' (16px, 20px, 24px)
- * - className: Additional CSS classes
- * - color: Explicit color override (use sparingly)
+ * - name: 許可されたアイコン名のみ（列挙型で制限）
+ * - size: 'sm' | 'md' | 'lg' のみ（数値指定禁止）
+ * - className: 追加CSSクラス
+ * - color: 色の明示的上書き（最小限の使用を推奨）
+ * 
+ * 規約強制：
+ * - サイズは tokens から取得（16/20/24px に固定）
+ * - strokeWidth は固定（呼び出し側から変更不可）
+ * - 許可されたアイコンのみ使用可能
  */
 
 import React from 'react';
 import './AppIcon.css';
+
+// 許可されたアイコン名の列挙型（型安全性）
+const ALLOWED_ICON_NAMES = [
+  'search', 'user', 'settings', 'layer', 'upload', 'download',
+  'close', 'check', 'chevronDown', 'chevronUp', 'chevronLeft', 'chevronRight',
+  'plus', 'minus', 'eye', 'eyeOff', 'filter', 'refresh', 'menu', 'dots',
+  'info', 'warning', 'error', 'trash', 'edit', 'export',
+  'file', 'folder', 'map', 'table', 'chart', 'calendar', 'clock'
+];
+
+// 許可されたサイズの列挙型
+const ALLOWED_SIZES = ['sm', 'md', 'lg'];
 
 const ICON_PATHS = {
   search: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
@@ -50,17 +67,32 @@ const ICON_PATHS = {
   clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
 };
 
+// 固定 strokeWidth（規約強制：呼び出し側から変更不可）
+const STROKE_WIDTH = 2;
+
 export default function AppIcon({ 
   name, 
-  size = 'base', 
+  size = 'md', 
   className = '', 
   color,
   ...props 
 }) {
+  // サイズバリデーション（実行時チェック）
+  if (!ALLOWED_SIZES.includes(size)) {
+    console.error(`[AppIcon] Invalid size "${size}". Allowed: ${ALLOWED_SIZES.join(', ')}`);
+    return null;
+  }
+
+  // アイコン名バリデーション（実行時チェック）
+  if (!ALLOWED_ICON_NAMES.includes(name)) {
+    console.error(`[AppIcon] Invalid icon name "${name}". Allowed icons: ${ALLOWED_ICON_NAMES.join(', ')}`);
+    return null;
+  }
+
   const path = ICON_PATHS[name];
   
   if (!path) {
-    console.warn(`[AppIcon] Icon "${name}" not found`);
+    console.error(`[AppIcon] Icon path not found for "${name}"`);
     return null;
   }
   
@@ -70,7 +102,7 @@ export default function AppIcon({
       fill="none"
       viewBox="0 0 24 24"
       stroke={color || 'currentColor'}
-      strokeWidth="2"
+      strokeWidth={STROKE_WIDTH}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

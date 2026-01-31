@@ -26,6 +26,15 @@ body {
   height: 100%;
 }
 
+/* Form elements inherit tokens */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }

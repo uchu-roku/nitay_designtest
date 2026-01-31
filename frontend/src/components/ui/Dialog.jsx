@@ -60,7 +60,7 @@ export function DialogHeader({ children, onClose }) {
           aria-label="閉じる"
           type="button"
         >
-          <AppIcon name="close" size="base" />
+          <AppIcon name="close" size="md" />
         </button>
       )}
     </div>

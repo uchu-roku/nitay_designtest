@@ -49,14 +49,14 @@
   --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
   --font-family-mono: ui-monospace, 'Courier New', monospace;
   
-  /* Font Sizes */
+  /* Font Sizes - MAX 18px per BtoB SaaS規約 */
   --font-size-xs: 11px;
   --font-size-sm: 12px;
   --font-size-base: 13px;
   --font-size-md: 14px;
   --font-size-lg: 16px;
   --font-size-xl: 18px;
-  --font-size-2xl: 20px;
+  /* --font-size-2xl: REMOVED - 規約違反（最大18px） */
   
   /* Line Heights */
   --line-height-none: 1;
@@ -86,20 +86,21 @@
   --spacing-16: 64px;
   
   /* ===== Border Radius ===== */
-  /* Minimal, professional rounding */
+  /* 規約準拠：2-4px中心、ダイアログのみ6px */
   --radius-none: 0;
-  --radius-sm: 3px;
+  --radius-sm: 2px;
   --radius-base: 4px;
   --radius-md: 6px;
-  --radius-lg: 8px;
+  /* --radius-lg: REMOVED - 規約違反（6px以下に統一） */
+  --radius-lg: 6px; /* Alias for backward compatibility - use radius-md instead */
   --radius-full: 9999px;
   
   /* ===== Shadows ===== */
-  /* Subtle, border-preferred design */
+  /* 規約準拠：単一影のみ、多重影禁止 */
   --shadow-none: none;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   
   /* ===== Borders ===== */
   --border-width: 1px;
