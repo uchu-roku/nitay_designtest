@@ -801,11 +801,11 @@ function App() {
             style={{
               flex: 1,
               padding: '12px 8px',
-                    background: mode === 'map' ? 'var(--color-primary)' : 'var(--color-surface-bg)',
-                    color: mode === 'map' ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                    background: mode === 'map' ? '#16a34a' : '#f9fafb',
+                    color: mode === 'map' ? '#ffffff' : '#6b7280',
                     border: 'none',
                     fontWeight: '500',
-                    fontSize: 'var(--font-size-sm)',
+                    fontSize: '14px',
               border: 'none',
               borderBottom: mode === 'map' ? 'none' : '1px solid #ddd',
               cursor: 'pointer',
@@ -821,11 +821,11 @@ function App() {
             style={{
               flex: 1,
               padding: '12px 8px',
-                    background: mode === 'upload' ? 'var(--color-primary)' : 'var(--color-surface-bg)',
-                    color: mode === 'upload' ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                    background: mode === 'upload' ? '#16a34a' : '#f9fafb',
+                    color: mode === 'upload' ? '#ffffff' : '#6b7280',
                     border: 'none',
                     fontWeight: '500',
-                    fontSize: 'var(--font-size-sm)',
+                    fontSize: '14px',
               border: 'none',
               borderBottom: mode === 'upload' ? 'none' : '1px solid #ddd',
               cursor: 'pointer',
@@ -841,11 +841,11 @@ function App() {
             style={{
               flex: 1,
               padding: '12px 8px',
-                    background: mode === 'chatbot' ? 'var(--color-primary)' : 'var(--color-surface-bg)',
-                    color: mode === 'chatbot' ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                    background: mode === 'chatbot' ? '#16a34a' : '#f9fafb',
+                    color: mode === 'chatbot' ? '#ffffff' : '#6b7280',
                     border: 'none',
                     fontWeight: '500',
-                    fontSize: 'var(--font-size-sm)',
+                    fontSize: '14px',
               border: 'none',
               borderBottom: mode === 'chatbot' ? 'none' : '1px solid #ddd',
               cursor: 'pointer',
@@ -871,14 +871,14 @@ function App() {
                       setDrawType('rectangle')
                       setDrawMode(true)
                     }}
-                    disabled={drawMode}
-                    style={{
-                      flex: 1,
-                    background: drawMode && drawType === 'rectangle' ? 'var(--color-primary)' : 'var(--color-surface-card)',
-                    color: drawMode && drawType === 'rectangle' ? 'var(--color-text-inverse)' : 'var(--color-primary)',
-                    border: '2px solid var(--color-primary)',
-                      borderRadius: '4px',
-                      fontSize: '12px',
+                  disabled={drawMode}
+                  style={{
+                    flex: 1,
+                    background: drawMode && drawType === 'rectangle' ? '#16a34a' : '#ffffff',
+                    color: drawMode && drawType === 'rectangle' ? '#ffffff' : '#16a34a',
+                    border: '1px solid #16a34a',
+                    borderRadius: '6px',
+                    fontSize: '14px',
                       fontWeight: 'bold',
                       cursor: drawMode ? 'not-allowed' : 'pointer',
                       display: 'flex',
@@ -967,19 +967,19 @@ function App() {
                   onClick={() => setShowForestRegistry(!showForestRegistry)}
                   style={{
                     width: '100%',
-                    background: 'var(--color-surface-card)',
-                    padding: 'var(--spacing-md) var(--spacing-lg)',
-                    border: '1px solid var(--color-surface-border)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: 'var(--font-size-sm)',
+                    background: '#ffffff',
+                    padding: '12px 16px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '4px',
+                    fontSize: '14px',
                     fontWeight: '500',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: 'var(--spacing-md)',
-                    color: 'var(--color-text-primary)',
-                    transition: 'all var(--transition-fast)'
+                    marginBottom: '12px',
+                    color: '#1f2937',
+                    transition: 'background 150ms'
                   }}
                 >
                   <span>森林簿</span>
@@ -1159,19 +1159,19 @@ function App() {
                   onClick={() => setShowAdminBoundaries(!showAdminBoundaries)}
                   style={{
                     width: '100%',
-                    background: 'var(--color-surface-card)',
-                    padding: 'var(--spacing-md) var(--spacing-lg)',
-                    border: '1px solid var(--color-surface-border)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: 'var(--font-size-sm)',
+                    background: '#ffffff',
+                    padding: '12px 16px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '4px',
+                    fontSize: '14px',
                     fontWeight: '500',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: 'var(--spacing-md)',
-                    color: 'var(--color-text-primary)',
-                    transition: 'all var(--transition-fast)'
+                    marginBottom: '12px',
+                    color: '#1f2937',
+                    transition: 'background 150ms'
                   }}
                 >
                   <span>行政区域</span>
@@ -1179,10 +1179,10 @@ function App() {
                     style={{
                       width: '50px',
                       height: '26px',
-                      background: showAdminBoundaries ? 'var(--color-primary)' : 'var(--color-neutral-300)',
+                      background: showAdminBoundaries ? '#16a34a' : '#d1d5db',
                       borderRadius: '12px',
                       position: 'relative',
-                      transition: 'background var(--transition-normal)',
+                      transition: 'background 200ms',
                       cursor: 'pointer',
                       width: '44px',
                       height: '24px',
@@ -1193,13 +1193,13 @@ function App() {
                       style={{
                         width: '22px',
                         height: '22px',
-                        background: 'var(--color-surface-card)',
+                        background: '#ffffff',
                         borderRadius: '50%',
                         position: 'absolute',
                         top: '2px',
                         left: showAdminBoundaries ? '22px' : '2px',
-                        transition: 'left var(--transition-normal)',
-                        boxShadow: 'var(--shadow-xs)',
+                        transition: 'transform 200ms',
+                        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.08)',
                         width: '20px',
                         height: '20px',
                       }}
@@ -1212,19 +1212,19 @@ function App() {
                   onClick={() => setShowRivers(!showRivers)}
                   style={{
                     width: '100%',
-                    background: 'var(--color-surface-card)',
-                    padding: 'var(--spacing-md) var(--spacing-lg)',
-                    border: '1px solid var(--color-surface-border)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: 'var(--font-size-sm)',
+                    background: '#ffffff',
+                    padding: '12px 16px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '4px',
+                    fontSize: '14px',
                     fontWeight: '500',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    marginBottom: 'var(--spacing-md)',
-                    color: 'var(--color-text-primary)',
-                    transition: 'all var(--transition-fast)'
+                    marginBottom: '12px',
+                    color: '#1f2937',
+                    transition: 'background 150ms'
                   }}
                 >
                   <span>河川</span>
@@ -1550,20 +1550,20 @@ function App() {
                   fontSize: '13px'
                 }}
               />
-              <button
-                onClick={handleChatSubmit}
-                disabled={analyzing || !chatInput.trim()}
-                style={{
-                  padding: '10px 20px',
-                    background: analyzing || !chatInput.trim() ? 'var(--color-neutral-300)' : 'var(--color-primary)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: analyzing || !chatInput.trim() ? 'not-allowed' : 'pointer',
-                  fontSize: '13px',
-                  fontWeight: 'bold'
-                }}
-              >
+                <button
+                  onClick={handleChatSubmit}
+                  disabled={analyzing || !chatInput.trim()}
+                  style={{
+                    padding: '8px 16px',
+                    background: analyzing || !chatInput.trim() ? '#d1d5db' : '#16a34a',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: analyzing || !chatInput.trim() ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                >
                 {analyzing ? '⏳' : '送信'}
               </button>
               </div>
@@ -1779,11 +1779,11 @@ function App() {
                   disabled={drawMode}
                   style={{
                     flex: 1,
-                    background: drawMode && drawType === 'rectangle' ? 'var(--color-primary)' : 'var(--color-surface-card)',
-                    color: drawMode && drawType === 'rectangle' ? 'var(--color-text-inverse)' : 'var(--color-primary)',
-                    padding: '10px',
-                    border: '2px solid #2c5f2d',
-                    borderRadius: '4px',
+                    background: drawMode && drawType === 'rectangle' ? '#16a34a' : '#ffffff',
+                    color: drawMode && drawType === 'rectangle' ? '#ffffff' : '#16a34a',
+                    padding: '8px 16px',
+                    border: '1px solid #16a34a',
+                    borderRadius: '6px',
                     fontSize: '12px',
                     fontWeight: 'bold',
                     cursor: drawMode ? 'not-allowed' : 'pointer',
@@ -2370,14 +2370,13 @@ function App() {
           {result && (
             <div>
               <h2 style={{ 
-                fontSize: 'var(--font-size-md)', 
-                marginBottom: 'var(--spacing-lg)', 
-                color: 'var(--color-text-primary)',
-                borderBottom: '1px solid var(--color-surface-border)',
-                paddingBottom: 'var(--spacing-md)',
+                fontSize: '15px', 
+                marginBottom: '16px', 
+                color: '#1f2937',
+                borderBottom: '1px solid #e5e7eb',
+                paddingBottom: '12px',
                 fontWeight: '600',
-                letterSpacing: 'var(--letter-spacing-normal)',
-                margin: '0 0 var(--spacing-lg) 0'
+                margin: '0 0 16px 0'
               }}>解析結果</h2>
               
               <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
@@ -2394,9 +2393,9 @@ function App() {
                           display: 'inline-block', 
                           width: '10px', 
                           height: '10px', 
-                          background: 'var(--color-primary)', 
-                          marginRight: 'var(--spacing-sm)',
-                          borderRadius: 'var(--radius-xs)'
+                          background: '#16a34a', 
+                          marginRight: '8px',
+                          borderRadius: '2px'
                         }}></span>
                         針葉樹:
                       </span>
@@ -2410,9 +2409,9 @@ function App() {
                           display: 'inline-block', 
                           width: '10px', 
                           height: '10px', 
-                          background: 'var(--color-accent-light)', 
-                          marginRight: 'var(--spacing-sm)',
-                          borderRadius: 'var(--radius-xs)'
+                          background: '#d97706', 
+                          marginRight: '8px',
+                          borderRadius: '2px'
                         }}></span>
                         広葉樹:
                       </span>

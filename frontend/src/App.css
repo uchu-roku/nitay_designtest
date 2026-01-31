@@ -19,22 +19,19 @@
 .bottom-panel {
   background: var(--color-surface-card);
   border-top: 1px solid var(--color-surface-border);
-  box-shadow: var(--shadow-sm);
   overflow-y: auto;
   max-height: 100px;
   z-index: 900;
-  transition: all var(--transition-normal);
 }
 
 /* Sidebar Styles */
 .sidebar {
-  width: 280px;
-  min-width: 280px;
-  max-width: 280px;
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
   background: var(--color-surface-card);
   padding: 0;
   overflow-y: auto;
-  box-shadow: 1px 0 0 0 var(--color-surface-border);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -42,22 +39,20 @@
   z-index: 1000;
   flex-shrink: 0;
   border-right: 1px solid var(--color-surface-border);
-  transition: transform var(--transition-normal);
 }
 
 .sidebar h1 {
   font-size: var(--font-size-md);
   margin: 0;
-  padding: var(--spacing-lg) var(--spacing-lg);
+  padding: var(--spacing-4);
   color: var(--color-text-primary);
   background: var(--color-surface-card);
   border-bottom: 1px solid var(--color-surface-border);
-  font-weight: 600;
-  letter-spacing: var(--letter-spacing-normal);
+  font-weight: var(--font-weight-semibold);
 }
 
 .sidebar-content {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-4);
   flex: 1;
   overflow-y: auto;
 }
@@ -72,7 +67,7 @@
 
 .sidebar-content::-webkit-scrollbar-thumb {
   background: var(--color-neutral-300);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .sidebar-content::-webkit-scrollbar-thumb:hover {
@@ -81,38 +76,34 @@
 
 /* Sections */
 .section {
-  margin-bottom: var(--spacing-lg);
-  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-4);
+  padding: var(--spacing-4);
   background: var(--color-surface-card);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
   border: 1px solid var(--color-surface-border);
-  animation: none;
 }
 
 .section h2 {
   font-size: var(--font-size-sm);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-3);
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   border-bottom: 1px solid var(--color-surface-border);
-  padding-bottom: var(--spacing-md);
-  letter-spacing: var(--letter-spacing-normal);
-  text-transform: none;
+  padding-bottom: var(--spacing-3);
 }
 
 .section h3 {
   font-size: var(--font-size-sm);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-3);
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-weight: var(--font-weight-medium);
 }
 
 .instruction {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   line-height: var(--line-height-normal);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-3);
 }
 
 /* Form Elements */
@@ -121,13 +112,14 @@ input[type="text"],
 input[type="number"],
 select {
   width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
+  height: 32px;
+  padding: 6px 10px;
   border: 1px solid var(--color-surface-border);
   border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   color: var(--color-text-primary);
   background: var(--color-surface-card);
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast);
   font-family: var(--font-family-primary);
 }
 
@@ -135,7 +127,7 @@ input[type="file"]:hover,
 input[type="text"]:hover,
 input[type="number"]:hover,
 select:hover {
-  border-color: var(--color-neutral-400);
+  border-color: var(--color-neutral-300);
 }
 
 input[type="file"]:focus,
@@ -144,7 +136,7 @@ input[type="number"]:focus,
 select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: inset 0 0 0 2px rgba(0, 102, 204, 0.1);
+  box-shadow: inset 0 0 0 2px rgba(22, 163, 74, 0.08);
 }
 
 /* Labels and Text */
@@ -179,28 +171,27 @@ label[for="file-upload"]:active {
 /* Results */
 .result {
   background: var(--color-surface-card);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-4);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-xs);
   border: 1px solid var(--color-surface-border);
 }
 
 .result h2 {
   font-size: var(--font-size-md);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-4);
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   border-bottom: 1px solid var(--color-surface-border);
-  padding-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-3);
 }
 
 .result-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-3);
   font-size: var(--font-size-sm);
-  padding: var(--spacing-md) 0;
+  padding: var(--spacing-3) 0;
   border-bottom: 1px solid var(--color-surface-border);
 }
 
@@ -210,68 +201,67 @@ label[for="file-upload"]:active {
 }
 
 .result-item .label {
-  font-weight: 500;
+  font-weight: var(--font-weight-normal);
   color: var(--color-text-secondary);
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-2);
 }
 
 .result-item .value {
   color: var(--color-primary);
-  font-weight: 600;
-  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
   font-family: var(--font-family-mono);
 }
 
 /* Warnings */
 .warnings {
-  margin-top: var(--spacing-lg);
-  padding: var(--spacing-md);
-  background: var(--color-neutral-100);
+  margin-top: var(--spacing-4);
+  padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-warning-bg);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--color-warning);
 }
 
 .warnings ul {
-  margin: var(--spacing-sm) 0 0 var(--spacing-lg);
+  margin: var(--spacing-2) 0 0 var(--spacing-4);
   list-style: none;
 }
 
 .warnings li {
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin-bottom: var(--spacing-sm);
+  color: var(--color-warning-text);
+  margin-bottom: var(--spacing-2);
   position: relative;
-  padding-left: var(--spacing-md);
+  padding-left: var(--spacing-3);
 }
 
 .warnings li::before {
   content: '–';
   position: absolute;
   left: 0;
-  color: var(--color-text-tertiary);
-  font-weight: 600;
+  color: var(--color-warning);
+  font-weight: var(--font-weight-medium);
 }
 
 /* Error */
 .error {
-  background: var(--color-neutral-100);
-  padding: var(--spacing-lg);
+  background: var(--color-error-bg);
+  padding: var(--spacing-4);
   border-radius: var(--radius-md);
   border-left: 3px solid var(--color-error);
-  box-shadow: var(--shadow-xs);
 }
 
 .error h3 {
   color: var(--color-error);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-3);
   font-size: var(--font-size-md);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .error p {
-  color: var(--color-text-primary);
+  color: var(--color-error-text);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-normal);
   margin: 0;
@@ -318,22 +308,14 @@ label[for="file-upload"]:active {
 
 /* Buttons */
 button {
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast);
   cursor: pointer;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   border: none;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
-  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  padding: 8px 16px;
   font-family: var(--font-family-primary);
-}
-
-button:hover:not(:disabled) {
-  background-color: opacity(0.92);
-}
-
-button:active:not(:disabled) {
-  opacity: 0.88;
 }
 
 button:disabled {
@@ -348,18 +330,22 @@ button.primary {
 }
 
 button.primary:hover:not(:disabled) {
-  background: #0052a3;
+  background: var(--color-primary-hover);
+}
+
+button.primary:active:not(:disabled) {
+  background: var(--color-primary-active);
 }
 
 /* Secondary Button */
 button.secondary {
-  background: var(--color-surface-bg);
+  background: var(--color-neutral-100);
   color: var(--color-text-primary);
-  border: 1px solid var(--color-surface-border);
+  border: 1px solid var(--color-neutral-300);
 }
 
 button.secondary:hover:not(:disabled) {
-  background: var(--color-neutral-100);
+  background: var(--color-surface-border);
   border-color: var(--color-neutral-400);
 }
 
