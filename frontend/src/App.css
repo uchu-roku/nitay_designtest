@@ -1,11 +1,17 @@
-/* Main App Layout */
+/* Main App Layout - B案: 下部テーブル型 */
 .app {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background: var(--color-surface-bg);
+  background: #f9fafb;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
 }
 
 .main-content {
@@ -15,7 +21,23 @@
   overflow: hidden;
 }
 
-/* Bottom Panel */
+.map-section {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.table-section {
+  height: 300px;
+  min-height: 150px;
+  max-height: 60vh;
+  position: relative;
+  overflow: hidden;
+  resize: vertical;
+}
+
+/* Bottom Panel - レガシー互換性 */
 .bottom-panel {
   background: var(--color-surface-card);
   border-top: 1px solid var(--color-surface-border);
@@ -24,55 +46,7 @@
   z-index: 900;
 }
 
-/* Sidebar Styles */
-.sidebar {
-  width: 240px;
-  min-width: 240px;
-  max-width: 240px;
-  background: var(--color-surface-card);
-  padding: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  height: 100%;
-  z-index: 1000;
-  flex-shrink: 0;
-  border-right: 1px solid var(--color-surface-border);
-}
-
-.sidebar h1 {
-  font-size: var(--font-size-md);
-  margin: 0;
-  padding: var(--spacing-4);
-  color: var(--color-text-primary);
-  background: var(--color-surface-card);
-  border-bottom: 1px solid var(--color-surface-border);
-  font-weight: var(--font-weight-semibold);
-}
-
-.sidebar-content {
-  padding: var(--spacing-4);
-  flex: 1;
-  overflow-y: auto;
-}
-
-.sidebar-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.sidebar-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sidebar-content::-webkit-scrollbar-thumb {
-  background: var(--color-neutral-300);
-  border-radius: var(--radius-sm);
-}
-
-.sidebar-content::-webkit-scrollbar-thumb:hover {
-  background: var(--color-neutral-400);
-}
+/* Sidebar Styles - moved to components.css */
 
 /* Sections */
 .section {
