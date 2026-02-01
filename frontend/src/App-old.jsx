@@ -12,7 +12,7 @@ function App() {
   // State管理
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState('layers')
-  const [showAdminBoundaries, setShowAdminBoundaries] = useState(true)
+  const [showAdminBoundaries, setShowAdminBoundaries] = useState(false)
   const [showForestRegistry, setShowForestRegistry] = useState(false)
   const [showRivers, setShowRivers] = useState(false)
   const [showSlope, setShowSlope] = useState(false)
@@ -21,10 +21,38 @@ function App() {
   const [tableData, setTableData] = useState([])
   const [tableHeight, setTableHeight] = useState(300)
   const [isResizing, setIsResizing] = useState(false)
+  const [municipalityNames, setMunicipalityNames] = useState({})
   
   const tableRef = useRef(null)
   const startYRef = useRef(0)
   const startHeightRef = useRef(0)
+
+  // 市町村コードマスターを取得
+  useEffect(() => {
+    fetch(`${API_URL}/api/municipality-codes`)
+      .then(res => res.json())
+      .then(data => {
+        console.log('市町村コードマスター取得:', data)
+        setMunicipalityNames(data)
+      })
+      .catch(err => {
+        console.error('市町村コードマスター取得エラー:', err)
+        // デフォルト値を設定（2桁の市町村コード）
+        setMunicipalityNames({
+          '01': '松前町',
+          '02': '福島町',
+          '03': '知内町',
+          '04': '木古内町',
+          '05': '北斗市',
+          '07': '七飯町',
+          '13': '鹿部町',
+          '15': '森町',
+          '16': '八雲町',
+          '17': '長万部町',
+          '19': '函館市'
+        })
+      })
+  }, [])
 
   // 検索実行
   const handleSearch = () => {
@@ -120,6 +148,7 @@ function App() {
               showRivers={showRivers}
               showSlope={showSlope}
               showContour={showContour}
+              municipalityNames={municipalityNames}
               onAnalysisComplete={setResult}
             />
           </div>

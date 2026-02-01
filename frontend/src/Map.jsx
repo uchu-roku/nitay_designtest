@@ -3,6 +3,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+console.log('API_URL:', API_URL, 'VITE_API_URL:', import.meta.env.VITE_API_URL)
 
 function Map({ 
   onAnalyze, 
@@ -82,7 +83,7 @@ function Map({
         const props = layer.feature.properties
         const keycode = props['KEYCODE']
         if (keycode && keycode.length >= 4) {
-          // KEYCODEの3-4桁目が市町村コード
+          // KEYCODEの3～4桁目が市町村コード
           const munCode = keycode.substring(2, 4)
           municipalityCodes.add(munCode)
         }
@@ -549,7 +550,7 @@ function Map({
         
         // 市町村コードでフィルタ（指定されている場合）
         if (munCode && keycode && keycode.length >= 4) {
-          // KEYCODEの3-4桁目が市町村コード
+          // KEYCODEの3～4桁目が市町村コード
           const layerMunCode = keycode.substring(2, 4)
           if (layerMunCode !== munCode) {
             return // 市町村コードが一致しない場合はスキップ
@@ -1785,10 +1786,13 @@ function Map({
       
       // バックエンドAPIから取得
       fetch(`${API_URL}/forest-registry/boundaries`)
-        .then(res => {
+        .then(async res => {
           console.log('小班GeoJSONレスポンス:', res.status, res.ok)
+          console.log('小班GeoJSON URL:', `${API_URL}/forest-registry/boundaries`)
+          const text = await res.text()
+          console.log('小班GeoJSON レスポンス最初の200文字:', text.substring(0, 200))
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
-          return res.json()
+          return JSON.parse(text)
         })
         .then(data => {
           console.log('小班GeoJSON読み込み完了:', data.features?.length, '件')
@@ -1836,126 +1840,212 @@ function Map({
                 console.log('小班クリック:', props)
                 console.log('KEYCODE:', keycode)
                 
-                // トグル選択: 既に選択されている場合は解除、そうでなければ追加
-                const highlightedLayers = window.highlightedLayersMap
+                // 詳細情報をポップアップで表示
+                const rinban = props['林班'] || 'N/A'
+                const syouhan = props['小班'] || 'N/A'
                 
-                if (highlightedLayers.has(keycode)) {
-                  // 選択解除
-                  console.log('選択解除:', keycode)
-                  
-                  const highlightedLayer = highlightedLayers.get(keycode)
-                  
-                  // ハイライトレイヤーを削除
-                  map.removeLayer(highlightedLayer)
-                  
-                  // 元のレイヤーを地図に再追加（選択時に削除されているため）
-                  const originalLayer = highlightedLayer._originalLayer
-                  
-                  if (originalLayer) {
-                    // 元のレイヤーを通常のスタイルで地図に再追加
-                    originalLayer.setStyle({
-                      color: '#8B4513',
-                      weight: 2,
-                      opacity: 0.7,
-                      fillOpacity: 0.15
-                    })
-                    originalLayer._isHighlighted = false
-                    originalLayer.addTo(map)
-                    console.log('元のレイヤーを地図に再追加しました')
-                  } else {
-                    // フォールバック: 元のレイヤーが見つからない場合はGeoJSONから再作成
-                    console.warn('元のレイヤーが見つかりません。GeoJSONから再作成します。')
-                    const geojson = highlightedLayer.toGeoJSON()
-                    const restoredLayer = L.geoJSON(geojson, {
-                      pane: 'forestRegistryPane',
-                      style: {
-                        color: '#8B4513',
-                        weight: 2,
-                        opacity: 0.7,
-                        fillOpacity: 0.15,
-                        fillColor: '#DEB887'
-                      }
-                    }).addTo(map)
+                // KEYCODEから市町村コードを抽出（3～4桁目）
+                const municipalityCode = keycode && keycode.length >= 4 ? keycode.substring(2, 4) : 'N/A'
+                const municipalityName = municipalityNames[municipalityCode] || municipalityCode
+                
+                // ローディング表示
+                let popupContent = `
+                  <div style="font-size: 12px; min-width: 250px;">
+                    <div style="
+                      background: linear-gradient(135deg, #2c5f2d 0%, #1a3a1b 100%);
+                      color: white;
+                      padding: 10px;
+                      margin: -10px -10px 10px -10px;
+                      border-radius: 4px 4px 0 0;
+                    ">
+                      <strong style="font-size: 14px;">🌲 小班情報</strong>
+                    </div>
+                    <div style="margin-top: 8px;">
+                      <div style="margin-bottom: 6px;">
+                        <strong>市町村:</strong> ${municipalityName}
+                      </div>
+                      <div style="margin-bottom: 6px;">
+                        <strong>林班:</strong> ${rinban}
+                      </div>
+                      <div style="margin-bottom: 6px;">
+                        <strong>小班:</strong> ${syouhan}
+                      </div>
+                      <div style="margin-bottom: 6px; font-size: 10px; color: #999;">
+                        KEYCODE: ${keycode}
+                      </div>
+                      <div style="color: #999; font-size: 11px; margin-top: 10px;">
+                        層データを読み込み中...
+                      </div>
+                    </div>
+                  </div>
+                `
+                
+                layer.bindPopup(popupContent).openPopup()
+                
+                // 層データを取得
+                try {
+                  const layersRes = await fetch(`${API_URL}/api/layers/${keycode}`)
+                  if (layersRes.ok) {
+                    const layersData = await layersRes.json()
                     
-                    // クリックイベントを再登録
-                    restoredLayer.eachLayer((newLayer) => {
-                      newLayer.on('click', clickHandler)
-                      newLayer._isHighlighted = false
-                      
-                      // ホバーイベントも再登録
-                      newLayer.on('mouseover', () => {
-                        if (!newLayer._isHighlighted) {
-                          newLayer.setStyle({
-                            fillOpacity: 0.4,
-                            weight: 3
-                          })
-                        }
+                    let layersHtml = ''
+                    if (layersData.layers && layersData.layers.length > 0) {
+                      layersHtml = '<div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">'
+                      layersData.layers.forEach((layerData, idx) => {
+                        const fukusou = layerData['複層区分コード'] || 'NULL'
+                        
+                        // 森林の種類（コード + 名前）
+                        const shinrinCode = layerData['森林の種類1コード'] || 'N/A'
+                        const shinrinName = layerData['森林の種類1名'] || ''
+                        const shinrin = shinrinName ? `${shinrinCode} (${shinrinName})` : shinrinCode
+                        
+                        // 林種（コード + 名前）
+                        const rinshuCode = layerData['林種コード'] || 'N/A'
+                        const rinshuName = layerData['林種名'] || ''
+                        const rinshu = rinshuName ? `${rinshuCode} (${rinshuName})` : rinshuCode
+                        
+                        // 樹種（コード + 名前）
+                        const jushuCode = layerData['樹種1コード'] || 'N/A'
+                        const jushuName = layerData['樹種1名'] || ''
+                        const jushu = jushuName ? `${jushuCode} (${jushuName})` : jushuCode
+                        
+                        const rinrei = layerData['林齢'] || 'N/A'
+                        const menseki = layerData['面積'] || 'N/A'
+                        
+                        layersHtml += `
+                          <div style="
+                            background: ${idx % 2 === 0 ? '#f5f5f5' : 'white'};
+                            padding: 8px;
+                            margin: 4px 0;
+                            border-radius: 3px;
+                            font-size: 11px;
+                            border-left: 3px solid #8B4513;
+                          ">
+                            <div style="font-weight: bold; margin-bottom: 4px; color: #2c5f2d;">
+                              層${idx + 1} (複層: ${fukusou})
+                            </div>
+                            <div style="margin-bottom: 2px;">
+                              <strong>森林種類:</strong> ${shinrin}
+                            </div>
+                            <div style="margin-bottom: 2px;">
+                              <strong>林種:</strong> ${rinshu}
+                            </div>
+                            <div style="margin-bottom: 2px;">
+                              <strong>樹種:</strong> ${jushu}
+                            </div>
+                            <div style="margin-bottom: 2px;">
+                              <strong>林齢:</strong> ${rinrei}年
+                            </div>
+                            <div>
+                              <strong>面積:</strong> ${menseki}ha
+                            </div>
+                          </div>
+                        `
                       })
-                      
-                      newLayer.on('mouseout', () => {
-                        if (!newLayer._isHighlighted) {
-                          newLayer.setStyle({
-                            fillOpacity: 0.15,
-                            weight: 2
-                          })
-                        }
-                      })
-                    })
-                  }
-                  
-                  highlightedLayers.delete(keycode)
-                  console.log('現在の選択数:', highlightedLayers.size)
-                  return // 選択解除したらポップアップは表示しない
-                } else {
-                  // 選択追加
-                  console.log('選択追加:', keycode)
-                  
-                  // レイヤーを選択用ペインに移動（一度削除して再作成）
-                  const geojson = layer.toGeoJSON()
-                  map.removeLayer(layer)
-                  
-                  // 選択用ペインで新しいレイヤーを作成
-                  const highlightLayer = L.geoJSON(geojson, {
-                    pane: 'forestRegistryHighlightPane',
-                    style: {
-                      color: '#FF4500',
-                      weight: 4,
-                      opacity: 1,
-                      fillOpacity: 0.3,
-                      fillColor: '#FF4500'
+                      layersHtml += '</div>'
+                    } else {
+                      layersHtml = '<div style="color: #999; font-size: 11px; margin-top: 10px;">層データがありません</div>'
                     }
-                  }).addTo(map)
-                  
-                  // 新しいレイヤーにクリックイベントを再登録
-                  highlightLayer.eachLayer((newLayer) => {
-                    newLayer.on('click', clickHandler)
-                    newLayer._isHighlighted = true
-                    newLayer._originalLayer = layer
                     
-                    // ホバーイベントも再登録
-                    newLayer.on('mouseover', () => {
-                      if (newLayer._isHighlighted) {
-                        newLayer.setStyle({
-                          fillOpacity: 0.5,
-                          weight: 5
-                        })
-                      }
-                    })
+                    // ポップアップを更新
+                    popupContent = `
+                      <div style="font-size: 12px; min-width: 250px; max-width: 350px; max-height: 400px; overflow-y: auto;">
+                        <div style="
+                          background: linear-gradient(135deg, #2c5f2d 0%, #1a3a1b 100%);
+                          color: white;
+                          padding: 10px;
+                          margin: -10px -10px 10px -10px;
+                          border-radius: 4px 4px 0 0;
+                        ">
+                          <strong style="font-size: 14px;">🌲 小班情報</strong>
+                        </div>
+                        <div style="margin-top: 8px;">
+                          <div style="margin-bottom: 6px;">
+                            <strong>市町村:</strong> ${municipalityName}
+                          </div>
+                          <div style="margin-bottom: 6px;">
+                            <strong>林班:</strong> ${rinban}
+                          </div>
+                          <div style="margin-bottom: 6px;">
+                            <strong>小班:</strong> ${syouhan}
+                          </div>
+                          <div style="margin-bottom: 6px; font-size: 10px; color: #999;">
+                            KEYCODE: ${keycode}
+                          </div>
+                          ${layersHtml}
+                        </div>
+                      </div>
+                    `
                     
-                    newLayer.on('mouseout', () => {
-                      if (newLayer._isHighlighted) {
-                        newLayer.setStyle({
-                          fillOpacity: 0.3,
-                          weight: 4
-                        })
-                      }
-                    })
-                    
-                    // 新しいレイヤーをマップに保存
-                    highlightedLayers.set(keycode, newLayer)
-                  })
-                  
-                  console.log('現在の選択数:', highlightedLayers.size)
+                    layer.setPopupContent(popupContent)
+                  } else {
+                    // エラー時のポップアップ更新
+                    popupContent = `
+                      <div style="font-size: 12px; min-width: 250px;">
+                        <div style="
+                          background: linear-gradient(135deg, #2c5f2d 0%, #1a3a1b 100%);
+                          color: white;
+                          padding: 10px;
+                          margin: -10px -10px 10px -10px;
+                          border-radius: 4px 4px 0 0;
+                        ">
+                          <strong style="font-size: 14px;">🌲 小班情報</strong>
+                        </div>
+                        <div style="margin-top: 8px;">
+                          <div style="margin-bottom: 6px;">
+                            <strong>市町村:</strong> ${municipalityName}
+                          </div>
+                          <div style="margin-bottom: 6px;">
+                            <strong>林班:</strong> ${rinban}
+                          </div>
+                          <div style="margin-bottom: 6px;">
+                            <strong>小班:</strong> ${syouhan}
+                          </div>
+                          <div style="margin-bottom: 6px; font-size: 10px; color: #999;">
+                            KEYCODE: ${keycode}
+                          </div>
+                          <div style="color: #d32f2f; font-size: 11px; margin-top: 10px;">
+                            層データの取得に失敗しました
+                          </div>
+                        </div>
+                      </div>
+                    `
+                    layer.setPopupContent(popupContent)
+                  }
+                } catch (err) {
+                  console.error('層データ取得エラー:', err)
+                  // エラー時のポップアップ更新
+                  popupContent = `
+                    <div style="font-size: 12px; min-width: 250px;">
+                      <div style="
+                        background: linear-gradient(135deg, #2c5f2d 0%, #1a3a1b 100%);
+                        color: white;
+                        padding: 10px;
+                        margin: -10px -10px 10px -10px;
+                        border-radius: 4px 4px 0 0;
+                      ">
+                        <strong style="font-size: 14px;">🌲 小班情報</strong>
+                      </div>
+                      <div style="margin-top: 8px;">
+                        <div style="margin-bottom: 6px;">
+                          <strong>市町村:</strong> ${municipalityName}
+                        </div>
+                        <div style="margin-bottom: 6px;">
+                          <strong>林班:</strong> ${rinban}
+                        </div>
+                        <div style="margin-bottom: 6px;">
+                          <strong>小班:</strong> ${syouhan}
+                        </div>
+                        <div style="margin-bottom: 6px; font-size: 10px; color: #999;">
+                          KEYCODE: ${keycode}
+                        </div>
+                        <div style="color: #d32f2f; font-size: 11px; margin-top: 10px;">
+                          エラーが発生しました
+                        </div>
+                      </div>
+                    </div>
+                  `
+                  layer.setPopupContent(popupContent)
                 }
                 
                 // ポリゴン座標を取得（解析用に保存）
@@ -1973,26 +2063,19 @@ function Map({
               // クリックイベントを登録
               layer.on('click', clickHandler)
               
-              // レイヤーに選択状態フラグを追加
-              layer._isHighlighted = false
-              
-              // ホバー時のスタイル変更（選択状態を考慮）
+              // ホバー時のスタイル変更
               layer.on('mouseover', () => {
-                if (!layer._isHighlighted) {
-                  layer.setStyle({
-                    fillOpacity: 0.4,
-                    weight: 3
-                  })
-                }
+                layer.setStyle({
+                  fillOpacity: 0.4,
+                  weight: 3
+                })
               })
               
               layer.on('mouseout', () => {
-                if (!layer._isHighlighted) {
-                  layer.setStyle({
-                    fillOpacity: 0.15,
-                    weight: 2
-                  })
-                }
+                layer.setStyle({
+                  fillOpacity: 0.15,
+                  weight: 2
+                })
               })
             }
           })
