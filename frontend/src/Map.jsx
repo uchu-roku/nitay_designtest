@@ -6,6 +6,39 @@ import ForestSelectionControl from './components/ForestSelectionControl'
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 console.log('API_URL:', API_URL, 'VITE_API_URL:', import.meta.env.VITE_API_URL)
 
+// 層データを静的ファイルから取得する関数
+async function fetchLayersData(keycode) {
+  if (!keycode || keycode.length < 5) {
+    return { layers: [] }
+  }
+  
+  // KEYCODEから市町村コードを抽出（3～5桁目）
+  const munCode = keycode.substring(2, 5)
+  
+  const baseUrl = import.meta.env.BASE_URL || '/'
+  const layersUrl = `${baseUrl}data/administrative/kitamirinsyou/split/layers_${munCode}.json`
+  
+  try {
+    const res = await fetch(layersUrl)
+    if (!res.ok) {
+      console.warn(`層データファイルが見つかりません: ${layersUrl}`)
+      return { layers: [] }
+    }
+    
+    const allLayers = await res.json()
+    
+    // KEYCODEに対応する層データを取得
+    if (allLayers[keycode]) {
+      return allLayers[keycode]
+    }
+    
+    return { layers: [] }
+  } catch (err) {
+    console.error('層データ取得エラー:', err)
+    return { layers: [] }
+  }
+}
+
 function Map({ 
   onAnalyze, 
   disabled, 
@@ -178,11 +211,9 @@ function Map({
         let shobanArea = 0 // この小班の面積
         
         try {
-          const layersRes = await fetch(`${API_URL}/api/layers/${keycode}`)
-          if (layersRes.ok) {
-            const layersData = await layersRes.json()
-            
-            if (layersData.layers && layersData.layers.length > 0) {
+          const layersData = await fetchLayersData(keycode)
+          
+          if (layersData.layers && layersData.layers.length > 0) {
               layersHtml = `<div style="font-size: 10px; margin-top: 4px;">`
               layersData.layers.forEach((layerData, idx) => {
                 const fukusou = layerData['複層区分コード'] || 'NULL'
@@ -232,9 +263,6 @@ function Map({
             } else {
               layersHtml = '<div style="color: #999; font-size: 10px;">層データなし</div>'
             }
-          } else {
-            layersHtml = '<div style="color: #d32f2f; font-size: 10px;">取得失敗</div>'
-          }
         } catch (err) {
           layersHtml = '<div style="color: #d32f2f; font-size: 10px;">エラー</div>'
         }
@@ -606,8 +634,7 @@ function Map({
           const municipalityName = municipalityNames[municipalityCode] || municipalityCode
           
           // 層データを非同期で取得
-          fetch(`${API_URL}/api/layers/${keycode}`)
-            .then(res => res.ok ? res.json() : { layers: [] })
+          fetchLayersData(keycode)
             .then(layersData => {
               if (onForestSelect) {
                 onForestSelect({
@@ -1898,18 +1925,38 @@ function Map({
     const map = mapInstanceRef.current
 
     if (showForestRegistry && !forestRegistryLayerRef.current) {
-      // 小班GeoJSONを読み込み
-      console.log('小班GeoJSONを読み込みます')
+      // 小班GeoJSONを読み込み（分割ファイル対応）
+      console.log('小班GeoJSONを読み込みます（分割ファイル）')
       
-      // バックエンドAPIから取得
-      fetch(`${API_URL}/forest-registry/boundaries`)
-        .then(async res => {
-          console.log('小班GeoJSONレスポンス:', res.status, res.ok)
-          console.log('小班GeoJSON URL:', `${API_URL}/forest-registry/boundaries`)
-          const text = await res.text()
-          console.log('小班GeoJSON レスポンス最初の200文字:', text.substring(0, 200))
-          if (!res.ok) throw new Error(`HTTP ${res.status}`)
-          return JSON.parse(text)
+      const baseUrl = import.meta.env.BASE_URL || '/'
+      const splitDir = `${baseUrl}data/administrative/kitamirinsyou/split/`
+      
+      // インデックスファイルを読み込み
+      fetch(`${splitDir}index.json`)
+        .then(res => res.json())
+        .then(async indexData => {
+          console.log('分割ファイル情報:', indexData)
+          
+          // すべての分割ファイルを読み込み
+          const allFeatures = []
+          for (const part of indexData.parts) {
+            const partUrl = `${splitDir}${part.file}`
+            console.log(`分割ファイル ${part.part}/${indexData.num_parts} を読み込み中...`)
+            const res = await fetch(partUrl)
+            const data = await res.json()
+            allFeatures.push(...data.features)
+            console.log(`分割ファイル ${part.part} 読み込み完了: ${data.features.length}件`)
+          }
+          
+          console.log(`全小班データ読み込み完了: ${allFeatures.length}件`)
+          
+          // GeoJSONオブジェクトを作成
+          const combinedData = {
+            type: 'FeatureCollection',
+            features: allFeatures
+          }
+          
+          return combinedData
         })
         .then(data => {
           console.log('小班GeoJSON読み込み完了:', data.features?.length, '件')
@@ -2074,13 +2121,11 @@ function Map({
                 if (!wasSelected) {
                   // 層データを取得
                   try {
-                    const layersRes = await fetch(`${API_URL}/api/layers/${keycode}`)
-                    if (layersRes.ok) {
-                      const layersData = await layersRes.json()
-                      
-                      console.log('onForestSelect呼び出し前:', onForestSelect ? 'あり' : 'なし')
-                      // コールバック関数を呼び出して属性テーブルに表示
-                      if (onForestSelect) {
+                    const layersData = await fetchLayersData(keycode)
+                    
+                    console.log('onForestSelect呼び出し前:', onForestSelect ? 'あり' : 'なし')
+                    // コールバック関数を呼び出して属性テーブルに表示
+                    if (onForestSelect) {
                         console.log('onForestSelectを呼び出します:', {
                           keycode,
                           rinban,
@@ -2100,22 +2145,8 @@ function Map({
                       } else {
                         console.error('onForestSelectコールバックが定義されていません')
                       }
-                    } else {
-                      console.error('層データの取得に失敗しました')
-                      // エラーでもコールバックを呼び出す（層データなし）
-                      if (onForestSelect) {
-                        onForestSelect({
-                          keycode,
-                          rinban,
-                          syouhan,
-                          municipalityCode,
-                          municipalityName,
-                          layers: []
-                        })
-                      }
-                    }
                   } catch (err) {
-                    console.error('層データ取得エラー:', err)
+                    console.error('層データの取得に失敗しました:', err)
                     // エラーでもコールバックを呼び出す（層データなし）
                     if (onForestSelect) {
                       onForestSelect({

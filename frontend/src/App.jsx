@@ -76,7 +76,10 @@ function App() {
 
   // 市町村コードマスターを取得
   useEffect(() => {
-    fetch(`${API_URL}/api/municipality-codes`)
+    const baseUrl = import.meta.env.BASE_URL || '/'
+    const municipalityCodesUrl = `${baseUrl}data/administrative/kitamirinsyou/municipality_codes.json`
+    
+    fetch(municipalityCodesUrl)
       .then(res => res.json())
       .then(data => {
         console.log('市町村コードマスター取得:', data)
