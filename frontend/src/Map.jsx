@@ -1,8 +1,10 @@
 import { useRef, useEffect, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import ForestSelectionControl from './components/ForestSelectionControl'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+console.log('API_URL:', API_URL, 'VITE_API_URL:', import.meta.env.VITE_API_URL)
 
 function Map({ 
   onAnalyze, 
@@ -31,7 +33,8 @@ function Map({
   onForestSearchQueryChange,
   onHasShapeChange,
   municipalityNames, // 市町村名マッピングを受け取る
-  sidebarVisible // サイドバーの表示状態
+  sidebarVisible, // サイドバーの表示状態
+  onForestSelect // 小班選択時のコールバック
 }) {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
@@ -82,7 +85,7 @@ function Map({
         const props = layer.feature.properties
         const keycode = props['KEYCODE']
         if (keycode && keycode.length >= 4) {
-          // KEYCODEの3-4桁目が市町村コード
+          // KEYCODEの3～4桁目が市町村コード
           const munCode = keycode.substring(2, 4)
           municipalityCodes.add(munCode)
         }
@@ -498,7 +501,7 @@ function Map({
     }
     
     // 森林簿検索関数（複数ID対応 + 市町村コードフィルタ）
-    window.handleForestSearch = (query, municipalityCode = '') => {
+    window.handleForestSearch = (query, municipalityCodes = []) => {
       if (!query || !query.trim() || !forestRegistryLayerRef.current || !mapInstanceRef.current) {
         console.log('検索条件が不足しています')
         return
@@ -506,8 +509,8 @@ function Map({
 
       const map = mapInstanceRef.current
       const searchQuery = query.trim()
-      const munCode = municipalityCode.trim()
-      console.log('森林簿を検索:', searchQuery, '市町村コード:', munCode)
+      const munCodes = Array.isArray(municipalityCodes) ? municipalityCodes : []
+      console.log('森林簿を検索:', searchQuery, '市町村コード:', munCodes)
 
       // カンマ区切りで複数IDを分割
       const searchIds = searchQuery.split(',').map(id => id.trim()).filter(id => id.length > 0)
@@ -548,10 +551,10 @@ function Map({
         const rinbanSyouhan = `${rinban}-${syouhan}`
         
         // 市町村コードでフィルタ（指定されている場合）
-        if (munCode && keycode && keycode.length >= 4) {
-          // KEYCODEの3-4桁目が市町村コード
+        if (munCodes.length > 0 && keycode && keycode.length >= 4) {
+          // KEYCODEの3～4桁目が市町村コード
           const layerMunCode = keycode.substring(2, 4)
-          if (layerMunCode !== munCode) {
+          if (!munCodes.includes(layerMunCode)) {
             return // 市町村コードが一致しない場合はスキップ
           }
         }
@@ -597,6 +600,40 @@ function Map({
           if (!highlightedLayerRef) {
             setHighlightedLayerRef(highlightLayer)
           }
+          
+          // 属性テーブルに追加するため、層データを取得してコールバックを呼び出す
+          const municipalityCode = keycode && keycode.length >= 4 ? keycode.substring(2, 4) : 'N/A'
+          const municipalityName = municipalityNames[municipalityCode] || municipalityCode
+          
+          // 層データを非同期で取得
+          fetch(`${API_URL}/api/layers/${keycode}`)
+            .then(res => res.ok ? res.json() : { layers: [] })
+            .then(layersData => {
+              if (onForestSelect) {
+                onForestSelect({
+                  keycode,
+                  rinban,
+                  syouhan,
+                  municipalityCode,
+                  municipalityName,
+                  layers: layersData.layers || []
+                })
+              }
+            })
+            .catch(err => {
+              console.error('層データ取得エラー:', err)
+              // エラーでもコールバックを呼び出す（層データなし）
+              if (onForestSelect) {
+                onForestSelect({
+                  keycode,
+                  rinban,
+                  syouhan,
+                  municipalityCode,
+                  municipalityName,
+                  layers: []
+                })
+              }
+            })
         }
       })
 
@@ -632,6 +669,7 @@ function Map({
 
   // 描画モードの状態を更新
   useEffect(() => {
+    console.log('描画モード変更:', drawMode, drawType)
     drawingStateRef.current.drawModeEnabled = drawMode
     drawingStateRef.current.drawType = drawType
     
@@ -639,8 +677,10 @@ function Map({
       const container = mapInstanceRef.current.getContainer()
       if (drawMode) {
         container.style.cursor = 'crosshair'
+        console.log('カーソルを十字に変更しました')
       } else {
         container.style.cursor = ''
+        console.log('カーソルをデフォルトに戻しました')
       }
     }
   }, [drawMode, drawType])
@@ -982,32 +1022,41 @@ function Map({
     }).addTo(map)
 
     // 描画の実装
-    let startLatLng = null
-    let tempShape = null
-    let isDrawingActive = false
-    let polygonPoints = []
+    const drawingState = {
+      startLatLng: null,
+      tempShape: null,
+      isDrawingActive: false,
+      polygonPoints: [],
+      clickTimeout: null,
+      clickCount: 0
+    }
     
     // グローバル変数として保存（リセットボタンからアクセスできるように）
-    window.tempDrawingShape = tempShape
-    window.polygonDrawingPoints = polygonPoints
-
-    let clickTimeout = null
-    let clickCount = 0
+    window.tempDrawingShape = null
+    window.polygonDrawingPoints = []
 
     const handleMapClick = (e) => {
-      if (disabledRef.current || !drawingStateRef.current.drawModeEnabled) return
-      if (drawingStateRef.current.drawType !== 'polygon') return
+      console.log('地図クリック:', e.latlng, 'drawMode:', drawingStateRef.current.drawModeEnabled, 'drawType:', drawingStateRef.current.drawType)
       
-      clickCount++
+      if (disabledRef.current || !drawingStateRef.current.drawModeEnabled) {
+        console.log('描画モードが無効です')
+        return
+      }
+      if (drawingStateRef.current.drawType !== 'polygon') {
+        console.log('ポリゴンモードではありません')
+        return
+      }
+      
+      drawingState.clickCount++
       
       // ダブルクリック判定
-      if (clickCount === 1) {
-        clickTimeout = setTimeout(() => {
+      if (drawingState.clickCount === 1) {
+        drawingState.clickTimeout = setTimeout(() => {
           // シングルクリック処理
           console.log('ポリゴン頂点追加:', e.latlng)
-          polygonPoints.push(e.latlng)
-          window.polygonDrawingPoints = polygonPoints
-          setPolygonPointCount(polygonPoints.length)
+          drawingState.polygonPoints.push(e.latlng)
+          window.polygonDrawingPoints = drawingState.polygonPoints
+          setPolygonPointCount(drawingState.polygonPoints.length)
           
           // 既存の図形を削除
           if (shapeLayerRef.current) {
@@ -1015,53 +1064,54 @@ function Map({
             shapeLayerRef.current = null
           }
           
-          if (tempShape) {
-            map.removeLayer(tempShape)
+          if (drawingState.tempShape) {
+            map.removeLayer(drawingState.tempShape)
           }
           
           // 一時的なポリゴンを作成
-          if (polygonPoints.length >= 2) {
-            tempShape = L.polygon(polygonPoints, {
-              color: '#2c5f2d',
+          if (drawingState.polygonPoints.length >= 2) {
+            drawingState.tempShape = L.polygon(drawingState.polygonPoints, {
+              color: 'var(--color-accent, #16a34a)',
               weight: 3,
               fillOpacity: 0.2,
               pane: 'overlayPane'
             }).addTo(map)
-            window.tempDrawingShape = tempShape
-          } else if (polygonPoints.length === 1) {
+            window.tempDrawingShape = drawingState.tempShape
+          } else if (drawingState.polygonPoints.length === 1) {
             // 最初の点をマーカーで表示
-            tempShape = L.circleMarker(polygonPoints[0], {
+            drawingState.tempShape = L.circleMarker(drawingState.polygonPoints[0], {
               radius: 5,
-              color: '#2c5f2d',
-              fillColor: '#2c5f2d',
+              color: 'var(--color-accent, #16a34a)',
+              fillColor: 'var(--color-accent, #16a34a)',
               fillOpacity: 1
             }).addTo(map)
-            window.tempDrawingShape = tempShape
+            window.tempDrawingShape = drawingState.tempShape
           }
           
-          clickCount = 0
+          drawingState.clickCount = 0
         }, 300)
-      } else if (clickCount === 2) {
+      } else if (drawingState.clickCount === 2) {
         // ダブルクリック処理
-        clearTimeout(clickTimeout)
-        clickCount = 0
+        clearTimeout(drawingState.clickTimeout)
+        drawingState.clickCount = 0
         
-        if (polygonPoints.length < 3) {
+        if (drawingState.polygonPoints.length < 3) {
           console.log('頂点が3つ以上必要です')
+          alert('ポリゴンを完成するには3つ以上の頂点が必要です')
           return
         }
         
-        console.log('ポリゴン完成:', polygonPoints.length, '頂点')
+        console.log('ポリゴン完成:', drawingState.polygonPoints.length, '頂点')
         
         // 一時図形を削除
-        if (tempShape) {
-          map.removeLayer(tempShape)
-          tempShape = null
+        if (drawingState.tempShape) {
+          map.removeLayer(drawingState.tempShape)
+          drawingState.tempShape = null
         }
         
         // 最終的なポリゴンを作成
-        const finalPolygon = L.polygon(polygonPoints, {
-          color: '#2c5f2d',
+        const finalPolygon = L.polygon(drawingState.polygonPoints, {
+          color: 'var(--color-accent, #16a34a)',
           weight: 3,
           fillOpacity: 0.2,
           pane: 'overlayPane'
@@ -1089,7 +1139,7 @@ function Map({
           if (window.mapInstance) {
             const pane = window.mapInstance.getPane('forestRegistryPane')
             if (pane) {
-              pane.style.zIndex = 450 // 元の値に戻す
+              pane.style.zIndex = 450
             }
           }
           
@@ -1098,7 +1148,7 @@ function Map({
             window.forestRegistryLayer.eachLayer(layer => {
               layer.setStyle({ opacity: 0.7, fillOpacity: 0.15 })
             })
-            console.log('森林簿レイヤーの透明度を元に戻しました（イベントは無効のまま）')
+            console.log('森林簿レイヤーの透明度を元に戻しました')
           }
         }
         
@@ -1106,22 +1156,34 @@ function Map({
         onAnalyzeRef.current(bounds, latLngs)
         
         // リセット
-        polygonPoints = []
-        drawingStateRef.current.polygonPoints = []
+        drawingState.polygonPoints = []
+        window.polygonDrawingPoints = []
         setPolygonPointCount(0)
       }
     }
 
     const handleMouseDown = (e) => {
-      if (disabledRef.current || !drawingStateRef.current.drawModeEnabled) return
-      if (drawingStateRef.current.drawType !== 'rectangle') return
+      console.log('マウスダウン:', e.latlng, 'drawMode:', drawingStateRef.current.drawModeEnabled, 'drawType:', drawingStateRef.current.drawType)
+      
+      if (disabledRef.current || !drawingStateRef.current.drawModeEnabled) {
+        console.log('描画モードが無効です')
+        return
+      }
+      if (drawingStateRef.current.drawType !== 'rectangle') {
+        console.log('矩形モードではありません')
+        return
+      }
+      
+      // イベントの伝播を停止
+      L.DomEvent.stopPropagation(e.originalEvent)
+      L.DomEvent.preventDefault(e.originalEvent)
       
       // 地図のドラッグを無効化
       map.dragging.disable()
       
       console.log('矩形描画開始:', e.latlng)
-      startLatLng = e.latlng
-      isDrawingActive = true
+      drawingState.startLatLng = e.latlng
+      drawingState.isDrawingActive = true
       setIsDrawing(true)
       
       // 既存の図形を削除
@@ -1131,84 +1193,88 @@ function Map({
       }
       
       // 一時的な矩形を作成
-      tempShape = L.rectangle([startLatLng, startLatLng], {
-        color: '#2c5f2d',
+      drawingState.tempShape = L.rectangle([drawingState.startLatLng, drawingState.startLatLng], {
+        color: 'var(--color-accent, #16a34a)',
         weight: 3,
         fillOpacity: 0.2,
         pane: 'overlayPane'
       }).addTo(map)
+      window.tempDrawingShape = drawingState.tempShape
     }
 
     const handleMouseMove = (e) => {
-      if (!isDrawingActive || !startLatLng || !tempShape) return
+      if (!drawingState.isDrawingActive || !drawingState.startLatLng || !drawingState.tempShape) return
       
       // 矩形を更新
-      const bounds = L.latLngBounds(startLatLng, e.latlng)
-      tempShape.setBounds(bounds)
+      const bounds = L.latLngBounds(drawingState.startLatLng, e.latlng)
+      drawingState.tempShape.setBounds(bounds)
     }
 
     const handleMouseUp = (e) => {
+      console.log('マウスアップ:', e.latlng, 'isDrawingActive:', drawingState.isDrawingActive)
+      
       // 地図のドラッグを再有効化
       map.dragging.enable()
       
-      if (!isDrawingActive || !startLatLng || !tempShape) return
+      if (!drawingState.isDrawingActive || !drawingState.startLatLng || !drawingState.tempShape) {
+        console.log('描画が開始されていません')
+        return
+      }
       
       console.log('矩形描画完了:', e.latlng)
       setIsDrawing(false)
-      isDrawingActive = false
+      drawingState.isDrawingActive = false
       
-      const bounds = L.latLngBounds(startLatLng, e.latlng)
+      const bounds = L.latLngBounds(drawingState.startLatLng, e.latlng)
       
       // 矩形が小さすぎる場合は無視
-      const distance = startLatLng.distanceTo(e.latlng)
+      const distance = drawingState.startLatLng.distanceTo(e.latlng)
       if (distance < 100) {
-        console.log('矩形が小さすぎます')
-        map.removeLayer(tempShape)
-        startLatLng = null
-        tempShape = null
+        console.log('矩形が小さすぎます:', distance, 'm')
+        map.removeLayer(drawingState.tempShape)
+        drawingState.startLatLng = null
+        drawingState.tempShape = null
+        window.tempDrawingShape = null
+        alert('矩形が小さすぎます。もう少し大きく描画してください。')
         return
       }
       
       // 矩形を確定
-      shapeLayerRef.current = tempShape
+      shapeLayerRef.current = drawingState.tempShape
       setHasShape(true)
       onHasShapeChange(true)
       onDrawModeChange(false)
       drawingStateRef.current.drawModeEnabled = false
-      startLatLng = null
-      tempShape = null
+      drawingState.startLatLng = null
+      drawingState.tempShape = null
+      window.tempDrawingShape = null
       
       console.log('解析を開始します:', bounds)
       
       // 森林簿の範囲指定モードの場合
       if (window.forestRegistryPartialMode && window.currentForestPolygon) {
         console.log('森林簿範囲指定モード: 小班ポリゴンとの交差を計算')
-        // 矩形の4隅の座標を取得
         const rectCoords = [
           { lat: bounds.getSouth(), lng: bounds.getWest() },
           { lat: bounds.getNorth(), lng: bounds.getWest() },
           { lat: bounds.getNorth(), lng: bounds.getEast() },
           { lat: bounds.getSouth(), lng: bounds.getEast() }
         ]
-        // 小班ポリゴンとの交差として扱う（簡易実装）
         onAnalyzeRef.current(bounds, rectCoords)
         window.forestRegistryPartialMode = false
         
-        // 森林簿レイヤーのz-indexを元に戻す
         if (window.mapInstance) {
           const pane = window.mapInstance.getPane('forestRegistryPane')
           if (pane) {
-            pane.style.zIndex = 450 // 元の値に戻す
+            pane.style.zIndex = 450
           }
         }
         
-        // 森林簿レイヤーを再表示（透明度を元に戻す）
-        // ただし、イベントは復元されないので、ページをリロードするか、森林簿ボタンをOFF/ONする必要がある
         if (window.forestRegistryLayer) {
           window.forestRegistryLayer.eachLayer(layer => {
             layer.setStyle({ opacity: 0.7, fillOpacity: 0.15 })
           })
-          console.log('森林簿レイヤーの透明度を元に戻しました（イベントは無効のまま）')
+          console.log('森林簿レイヤーの透明度を元に戻しました')
         }
       } else {
         // 通常モード: 矩形の場合はポリゴン座標なし
@@ -1216,6 +1282,7 @@ function Map({
       }
     }
 
+    // イベントリスナーを登録
     map.on('click', handleMapClick)
     map.on('mousedown', handleMouseDown)
     map.on('mousemove', handleMouseMove)
@@ -1223,6 +1290,8 @@ function Map({
     
     // ダブルクリックでのズームを無効化（ポリゴン描画のため）
     map.doubleClickZoom.disable()
+    
+    console.log('描画イベントリスナーを登録しました')
 
     // クリーンアップ
     return () => {
@@ -1262,9 +1331,19 @@ function Map({
     // ローディング開始
     setImageLoading(true)
 
-    // 画像オーバーレイを追加（MVP版: 直接パスを使用）
-    const imageUrl = fileId.startsWith('/') ? fileId : `${API_URL}/image/${fileId}`
-    console.log('画像URL:', imageUrl)
+    // 画像オーバーレイを追加
+    // MVP版: fileIdが画像パス（sample-images/で始まる）の場合は直接使用
+    let imageUrl
+    if (fileId.startsWith('sample-images/') || fileId.startsWith('/sample-images/')) {
+      // 相対パスの場合
+      const baseUrl = import.meta.env.BASE_URL || '/'
+      imageUrl = `${baseUrl}${fileId.replace(/^\//, '')}`
+      console.log('画像URL（静的ファイル）:', imageUrl)
+    } else {
+      // APIエンドポイント経由
+      imageUrl = fileId.startsWith('/') ? fileId : `${API_URL}/image/${fileId}`
+      console.log('画像URL（API）:', imageUrl)
+    }
     
     const imageLayer = L.imageOverlay(imageUrl, bounds, {
       opacity: 0.9,
@@ -1324,7 +1403,7 @@ function Map({
 
   }, [zoomToImage, imageBounds])
 
-  // 樹木位置をメッシュ表示
+  // 樹木位置をメッシュ表示（選択した境界内のみ）
   useEffect(() => {
     if (!mapInstanceRef.current) return
 
@@ -1338,7 +1417,99 @@ function Map({
 
     // 新しいメッシュを追加
     if (treePoints && treePoints.length > 0) {
-      console.log(`樹木位置をメッシュ表示: ${treePoints.length}本`)
+      console.log('[Map.jsx] ========== メッシュ表示処理開始 ==========')
+      console.log('[Map.jsx] 樹木位置をメッシュ表示:', treePoints.length, '本')
+      console.log('[Map.jsx] サンプルデータ:', treePoints.slice(0, 3))
+
+      // 選択した境界を取得（描画した図形またはハイライトされた小班）
+      let boundaryPolygons = []
+      
+      // polygonCoordsが渡されている場合（描画図形から）
+      if (polygonCoords && polygonCoords.length > 0) {
+        console.log('[Map.jsx] polygonCoordsを使用:', polygonCoords.length, '個の頂点')
+        
+        // polygonCoordsはLatLngオブジェクトの配列
+        // 配列の配列ではないので、そのまま使用
+        if (polygonCoords[0] && polygonCoords[0].lat !== undefined) {
+          // 単一ポリゴンの場合
+          console.log('[Map.jsx] 単一ポリゴン（描画図形）')
+          boundaryPolygons.push(polygonCoords)
+        } else if (Array.isArray(polygonCoords[0])) {
+          // 複数ポリゴンの場合（札幌市全体など）
+          console.log('[Map.jsx] 複数ポリゴン:', polygonCoords.length, '個')
+          boundaryPolygons = polygonCoords
+        }
+      }
+      // 1. ハイライトされた小班がある場合、その境界を使用
+      else if (window.highlightedLayersMap && window.highlightedLayersMap.size > 0) {
+        console.log('[Map.jsx] ハイライトされた小班の境界を使用:', window.highlightedLayersMap.size, '件')
+        window.highlightedLayersMap.forEach((layer) => {
+          let latLngs = layer.getLatLngs()
+          // ネストされた配列を展開
+          while (Array.isArray(latLngs[0]) && latLngs[0].lat === undefined) {
+            latLngs = latLngs[0]
+          }
+          boundaryPolygons.push(latLngs)
+        })
+      }
+      // 2. 描画した図形がある場合、その境界を使用
+      else if (shapeLayerRef.current) {
+        console.log('描画した図形の境界を使用')
+        const shape = shapeLayerRef.current
+        if (shape.getLatLngs) {
+          let latLngs = shape.getLatLngs()
+          // ポリゴンの場合
+          if (Array.isArray(latLngs[0])) {
+            latLngs = latLngs[0]
+          }
+          boundaryPolygons.push(latLngs)
+        } else if (shape.getBounds) {
+          // 矩形の場合
+          const bounds = shape.getBounds()
+          const rectLatLngs = [
+            bounds.getSouthWest(),
+            bounds.getNorthWest(),
+            bounds.getNorthEast(),
+            bounds.getSouthEast()
+          ]
+          boundaryPolygons.push(rectLatLngs)
+        }
+      }
+
+      // 点がポリゴン内にあるか判定（Ray Casting Algorithm）
+      const isPointInPolygon = (lat, lon, polygon) => {
+        let inside = false
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+          const xi = polygon[i].lng || polygon[i].lon
+          const yi = polygon[i].lat
+          const xj = polygon[j].lng || polygon[j].lon
+          const yj = polygon[j].lat
+          
+          const intersect = ((yi > lat) !== (yj > lat)) &&
+            (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)
+          if (intersect) inside = !inside
+        }
+        return inside
+      }
+
+      // メッシュ矩形が境界と交差または内部にあるか判定
+      const isMeshInBoundaries = (meshMinLat, meshMaxLat, meshMinLon, meshMaxLon) => {
+        if (boundaryPolygons.length === 0) {
+          console.log('[Map.jsx] 境界が指定されていないため、すべてのメッシュを表示')
+          return true // 境界が指定されていない場合はすべて表示
+        }
+        
+        // メッシュの中心点が境界内にあるかチェック
+        const centerLat = (meshMinLat + meshMaxLat) / 2
+        const centerLon = (meshMinLon + meshMaxLon) / 2
+        
+        // いずれかのポリゴンに中心点が含まれていればtrue
+        const result = boundaryPolygons.some(polygon => {
+          return isPointInPolygon(centerLat, centerLon, polygon)
+        })
+        
+        return result
+      }
 
       // 材積の範囲を計算
       const volumes = treePoints.map(p => p.volume)
@@ -1354,133 +1525,75 @@ function Map({
       const minLon = Math.min(...lons)
       const maxLon = Math.max(...lons)
       
-      // メッシュサイズを推定（隣接するポイント間の距離から計算）
-      let estimatedMeshSizeM = 10 // デフォルト10m
-      if (treePoints.length > 1) {
-        // 最初の2点間の距離からメッシュサイズを推定
-        const p1 = treePoints[0]
-        const p2 = treePoints[1]
-        const latDist = Math.abs(p1.lat - p2.lat) * 111000
-        const lonDist = Math.abs(p1.lon - p2.lon) * 111000 * Math.cos(p1.lat * Math.PI / 180)
-        estimatedMeshSizeM = Math.max(latDist, lonDist)
-        console.log(`推定メッシュサイズ: ${estimatedMeshSizeM.toFixed(1)}m`)
-      }
+      // 固定のメッシュサイズを使用（500m x 500m - App.jsxと同じサイズ）
+      const meshSizeM = 500 // 500メートル四方のメッシュ（App.jsxと一致）
+      console.log(`メッシュサイズ: ${meshSizeM}m x ${meshSizeM}m`)
       
       // 全体の範囲に対して統一されたメッシュサイズを使用
       const avgLat = (minLat + maxLat) / 2
-      const latStep = estimatedMeshSizeM / 111000
-      const lonStep = estimatedMeshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
+      const latStep = meshSizeM / 111000
+      const lonStep = meshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
       
-      // 白い背景レイヤーを追加（ポリゴンまたは矩形）
       // メッシュ用のカスタムペインを作成（森林簿より上に表示）
       if (!map.getPane('meshPane')) {
         const pane = map.createPane('meshPane')
         pane.style.zIndex = 460 // 森林簿(450)より上
-      }
-      
-      let backgroundLayer
-      if (polygonCoords && polygonCoords.length > 0) {
-        // ポリゴンが指定されている場合はポリゴン形状の背景
-        // 複数ポリゴン（配列の配列）かどうかをチェック
-        // polygonCoords[0]が配列で、その最初の要素がオブジェクト（{lat, lon}）なら複数ポリゴン
-        const isMultiPolygonDetected = Array.isArray(polygonCoords[0]) && 
-                                       polygonCoords[0].length > 0 &&
-                                       typeof polygonCoords[0][0] === 'object' &&
-                                       polygonCoords[0][0].lat !== undefined
-        
-        console.log('ポリゴン座標の構造チェック:', {
-          isArray: Array.isArray(polygonCoords),
-          length: polygonCoords.length,
-          firstElement: polygonCoords[0],
-          isMultiPolygonDetected: isMultiPolygonDetected,
-          isMultiPolygonProp: isMultiPolygon
-        })
-        
-        // propsから渡されたisMultiPolygonフラグまたは自動検出を使用
-        const useMultiPolygon = isMultiPolygon || isMultiPolygonDetected
-        
-        if (useMultiPolygon) {
-          // 複数ポリゴンの場合
-          console.log('複数ポリゴン形状の白い背景を作成:', polygonCoords.length, '個のポリゴン')
-          const allPolygonLatLngs = polygonCoords.map(polygon => 
-            polygon.map(coord => [coord.lat, coord.lon || coord.lng])
-          )
-          
-          backgroundLayer = L.polygon(allPolygonLatLngs, {
-            pane: 'meshPane',
-            color: 'white',
-            weight: 0,
-            opacity: 0,
-            fillColor: 'white',
-            fillOpacity: 0.9,
-            zIndexOffset: 499
-          })
-        } else {
-          // 単一ポリゴンの場合
-          const polygonLatLngs = polygonCoords.map(coord => [coord.lat, coord.lon || coord.lng])
-          console.log('ポリゴン形状の白い背景を作成:', polygonLatLngs.length, '頂点')
-          
-          backgroundLayer = L.polygon(polygonLatLngs, {
-            pane: 'meshPane',
-            color: 'white',
-            weight: 0,
-            opacity: 0,
-            fillColor: 'white',
-            fillOpacity: 0.9,
-            zIndexOffset: 499
-          })
-        }
+        console.log('メッシュペインを作成しました。z-index:', pane.style.zIndex)
       } else {
-        // ポリゴンがない場合は矩形の背景
-        const backgroundBounds = [
-          [minLat - latStep * 0.5, minLon - lonStep * 0.5],
-          [maxLat + latStep * 0.5, maxLon + lonStep * 0.5]
-        ]
-        
-        backgroundLayer = L.rectangle(backgroundBounds, {
-          pane: 'meshPane',
-          color: 'white',
-          weight: 0,
-          opacity: 0,
-          fillColor: 'white',
-          fillOpacity: 0.9,
-          zIndexOffset: 499
-        })
+        console.log('メッシュペインは既に存在します')
       }
-      
-      backgroundLayer.addTo(map)
-      treeMarkersRef.current.push(backgroundLayer)
-      console.log('白い背景レイヤーを追加しました')
+
+      let displayedCount = 0
+      let filteredCount = 0
+      let coniferousDisplayed = 0
+      let broadleafDisplayed = 0
 
       treePoints.forEach((point, index) => {
         const isConiferous = point.tree_type === 'coniferous'
         
-        // 材積に応じた不透明度を計算（0.2〜0.95の範囲）
+        // 統一されたメッシュサイズで境界を計算（隙間なし）
+        const meshMinLat = point.lat - latStep / 2
+        const meshMaxLat = point.lat + latStep / 2
+        const meshMinLon = point.lon - lonStep / 2
+        const meshMaxLon = point.lon + lonStep / 2
+        
+        // 境界内判定（メッシュの中心点で判定）
+        if (!isMeshInBoundaries(meshMinLat, meshMaxLat, meshMinLon, meshMaxLon)) {
+          filteredCount++
+          return // 境界外の点はスキップ
+        }
+
+        displayedCount++
+        if (isConiferous) {
+          coniferousDisplayed++
+        } else {
+          broadleafDisplayed++
+        }
+        
+        // 材積に応じた不透明度を計算（0.4〜0.95の範囲 - より濃く）
         const volumeRatio = maxVolume > minVolume 
           ? (point.volume - minVolume) / (maxVolume - minVolume)
           : 0.5
-        const opacity = 0.2 + (volumeRatio * 0.75)
+        const opacity = 0.4 + (volumeRatio * 0.55) // 最小0.4、最大0.95
         
         // 針葉樹と広葉樹で色を分ける（はっきり区別）
         // 針葉樹: 濃い緑（#2e7d32）、広葉樹: 茶色系（#8d6e63）
         const baseColor = isConiferous ? '#2e7d32' : '#8d6e63'
         
-        // 統一されたメッシュサイズで境界を計算（隙間なし）
         const bounds = [
-          [point.lat - latStep / 2, point.lon - lonStep / 2],
-          [point.lat + latStep / 2, point.lon + lonStep / 2]
+          [meshMinLat, meshMinLon],
+          [meshMaxLat, meshMaxLon]
         ]
         
-        // 矩形メッシュを作成（境界線なし、隙間なし）
+        // 矩形メッシュを作成（境界線なし、隙間なし、濃い色）
         const mesh = L.rectangle(bounds, {
           pane: 'meshPane',
           color: baseColor,
           weight: 0,
           opacity: 0,
           fillColor: baseColor,
-          fillOpacity: opacity,
-          interactive: true,
-          zIndexOffset: 500
+          fillOpacity: 0.7, // 固定で0.7（濃く表示）
+          interactive: true
         })
 
         // ポップアップを追加
@@ -1488,8 +1601,8 @@ function Map({
         const icon = point.tree_type === 'coniferous' ? '🌲' : '🌳'
         mesh.bindPopup(`
           <div style="font-size: 13px;">
-            <strong>🌲 ${treeTypeName}</strong><br/>
-            胸高直径: ${point.dbh} cm<br/>
+            <strong>${icon} ${treeTypeName}</strong><br/>
+            胸高直径: ${point.dbh.toFixed(1)} cm<br/>
             材積: ${point.volume.toFixed(2)} m³<br/>
             <span style="color: #666; font-size: 11px;">
               (濃さ: ${(opacity * 100).toFixed(0)}%)
@@ -1500,8 +1613,13 @@ function Map({
         mesh.addTo(map)
         treeMarkersRef.current.push(mesh)
       })
+      
+      console.log('[Map.jsx] メッシュ追加完了:', displayedCount, '個のメッシュを表示（針葉樹:', coniferousDisplayed, ', 広葉樹:', broadleafDisplayed, ', フィルタ:', filteredCount, '）')
+      console.log('[Map.jsx] ========== メッシュ表示処理完了 ==========')
+    } else {
+      console.log('[Map.jsx] treePointsが空またはundefined:', treePoints)
     }
-  }, [treePoints])
+  }, [treePoints, polygonCoords])
 
   // 札幌市の範囲を表示（チャットボットモード用）
   useEffect(() => {
@@ -1566,7 +1684,7 @@ function Map({
               weight: 3,
               opacity: 0.8,
               fillColor: 'white',
-              fillOpacity: 0.9,
+              fillOpacity: 0.1,  // 0.9 → 0.1 に変更（メッシュが見えるように）
               pane: 'sapporoBackgroundPane'
             }).addTo(map)
             
@@ -1581,7 +1699,7 @@ function Map({
             
             map.fitBounds(bounds, {
               padding: [50, 50],
-              maxZoom: 11
+              maxZoom: 13  // メッシュが見えるようにズームレベルを上げる
             })
             return
           }
@@ -1604,7 +1722,7 @@ function Map({
               weight: 3,
               opacity: 0.8,
               fillColor: 'white',
-              fillOpacity: 0.9
+              fillOpacity: 0.1  // 0.9 → 0.1 に変更（メッシュが見えるように）
             },
             pane: 'sapporoBackgroundPane'
           }).addTo(map)
@@ -1625,9 +1743,9 @@ function Map({
             const bounds = sapporoLayer.getBounds()
             map.fitBounds(bounds, {
               padding: [50, 50],
-              maxZoom: 11
+              maxZoom: 13  // メッシュが見えるようにズームレベルを上げる
             })
-            console.log('地図を札幌市の範囲に移動しました')
+            console.log('地図を札幌市の範囲に移動しました（ズームレベル: 13）')
           }, 100)
         })
         .catch(err => {
@@ -1658,7 +1776,7 @@ function Map({
           
           map.fitBounds(bounds, {
             padding: [50, 50],
-            maxZoom: 11
+            maxZoom: 13  // メッシュが見えるようにズームレベルを上げる
           })
         })
     }
@@ -1785,10 +1903,13 @@ function Map({
       
       // バックエンドAPIから取得
       fetch(`${API_URL}/forest-registry/boundaries`)
-        .then(res => {
+        .then(async res => {
           console.log('小班GeoJSONレスポンス:', res.status, res.ok)
+          console.log('小班GeoJSON URL:', `${API_URL}/forest-registry/boundaries`)
+          const text = await res.text()
+          console.log('小班GeoJSON レスポンス最初の200文字:', text.substring(0, 200))
           if (!res.ok) throw new Error(`HTTP ${res.status}`)
-          return res.json()
+          return JSON.parse(text)
         })
         .then(data => {
           console.log('小班GeoJSON読み込み完了:', data.features?.length, '件')
@@ -1821,7 +1942,7 @@ function Map({
                 
                 // 範囲指定モードの時はイベントを無視
                 if (window.forestRegistryPartialMode) {
-                  console.log('範囲指定モード中のため、ポップアップを表示しません')
+                  console.log('範囲指定モード中のため、処理をスキップします')
                   L.DomEvent.stopPropagation(e)
                   L.DomEvent.preventDefault(e)
                   map.closePopup()
@@ -1836,83 +1957,56 @@ function Map({
                 console.log('小班クリック:', props)
                 console.log('KEYCODE:', keycode)
                 
+                const rinban = props['林班'] || 'N/A'
+                const syouhan = props['小班'] || 'N/A'
+                
+                // KEYCODEから市町村コードを抽出（3～4桁目）
+                const municipalityCode = keycode && keycode.length >= 4 ? keycode.substring(2, 4) : 'N/A'
+                const municipalityName = municipalityNames[municipalityCode] || municipalityCode
+                
                 // トグル選択: 既に選択されている場合は解除、そうでなければ追加
                 const highlightedLayers = window.highlightedLayersMap
+                const wasSelected = highlightedLayers.has(keycode)
                 
-                if (highlightedLayers.has(keycode)) {
+                if (wasSelected) {
                   // 選択解除
                   console.log('選択解除:', keycode)
-                  
                   const highlightedLayer = highlightedLayers.get(keycode)
                   
                   // ハイライトレイヤーを削除
                   map.removeLayer(highlightedLayer)
                   
-                  // 元のレイヤーを地図に再追加（選択時に削除されているため）
-                  const originalLayer = highlightedLayer._originalLayer
-                  
-                  if (originalLayer) {
-                    // 元のレイヤーを通常のスタイルで地図に再追加
-                    originalLayer.setStyle({
-                      color: '#8B4513',
-                      weight: 2,
-                      opacity: 0.7,
-                      fillOpacity: 0.15
-                    })
-                    originalLayer._isHighlighted = false
-                    originalLayer.addTo(map)
-                    console.log('元のレイヤーを地図に再追加しました')
-                  } else {
-                    // フォールバック: 元のレイヤーが見つからない場合はGeoJSONから再作成
-                    console.warn('元のレイヤーが見つかりません。GeoJSONから再作成します。')
-                    const geojson = highlightedLayer.toGeoJSON()
-                    const restoredLayer = L.geoJSON(geojson, {
-                      pane: 'forestRegistryPane',
-                      style: {
-                        color: '#8B4513',
-                        weight: 2,
-                        opacity: 0.7,
-                        fillOpacity: 0.15,
-                        fillColor: '#DEB887'
-                      }
-                    }).addTo(map)
-                    
-                    // クリックイベントを再登録
-                    restoredLayer.eachLayer((newLayer) => {
-                      newLayer.on('click', clickHandler)
-                      newLayer._isHighlighted = false
-                      
-                      // ホバーイベントも再登録
-                      newLayer.on('mouseover', () => {
-                        if (!newLayer._isHighlighted) {
-                          newLayer.setStyle({
-                            fillOpacity: 0.4,
-                            weight: 3
-                          })
-                        }
-                      })
-                      
-                      newLayer.on('mouseout', () => {
-                        if (!newLayer._isHighlighted) {
-                          newLayer.setStyle({
-                            fillOpacity: 0.15,
-                            weight: 2
-                          })
-                        }
-                      })
-                    })
-                  }
+                  // 元のレイヤーのスタイルを復元
+                  layer.setStyle({
+                    color: '#8B4513',
+                    weight: 2,
+                    opacity: 0.7,
+                    fillOpacity: 0.15
+                  })
+                  layer._isHighlighted = false
                   
                   highlightedLayers.delete(keycode)
                   console.log('現在の選択数:', highlightedLayers.size)
-                  return // 選択解除したらポップアップは表示しない
+                  
+                  // 選択解除を通知（テーブルから削除）
+                  if (onForestSelect) {
+                    onForestSelect({
+                      keycode,
+                      rinban,
+                      syouhan,
+                      municipalityCode,
+                      municipalityName,
+                      layers: [],
+                      isDeselect: true // 選択解除フラグ
+                    })
+                  }
+                  return // 選択解除したら終了
                 } else {
                   // 選択追加
                   console.log('選択追加:', keycode)
                   
                   // レイヤーを選択用ペインに移動（一度削除して再作成）
                   const geojson = layer.toGeoJSON()
-                  map.removeLayer(layer)
                   
                   // 選択用ペインで新しいレイヤーを作成
                   const highlightLayer = L.geoJSON(geojson, {
@@ -1955,6 +2049,13 @@ function Map({
                     highlightedLayers.set(keycode, newLayer)
                   })
                   
+                  // 元のレイヤーを非表示にする
+                  layer.setStyle({
+                    opacity: 0,
+                    fillOpacity: 0
+                  })
+                  layer._isHighlighted = true
+                  
                   console.log('現在の選択数:', highlightedLayers.size)
                 }
                 
@@ -1968,31 +2069,84 @@ function Map({
                 window.currentForestPolygon = latLngs
                 window.currentForestBounds = bounds
                 window.currentForestRegistryId = keycode
+                
+                // 選択追加の場合のみ、層データを取得して属性テーブルに追加
+                if (!wasSelected) {
+                  // 層データを取得
+                  try {
+                    const layersRes = await fetch(`${API_URL}/api/layers/${keycode}`)
+                    if (layersRes.ok) {
+                      const layersData = await layersRes.json()
+                      
+                      console.log('onForestSelect呼び出し前:', onForestSelect ? 'あり' : 'なし')
+                      // コールバック関数を呼び出して属性テーブルに表示
+                      if (onForestSelect) {
+                        console.log('onForestSelectを呼び出します:', {
+                          keycode,
+                          rinban,
+                          syouhan,
+                          municipalityCode,
+                          municipalityName,
+                          layers: layersData.layers || []
+                        })
+                        onForestSelect({
+                          keycode,
+                          rinban,
+                          syouhan,
+                          municipalityCode,
+                          municipalityName,
+                          layers: layersData.layers || []
+                        })
+                      } else {
+                        console.error('onForestSelectコールバックが定義されていません')
+                      }
+                    } else {
+                      console.error('層データの取得に失敗しました')
+                      // エラーでもコールバックを呼び出す（層データなし）
+                      if (onForestSelect) {
+                        onForestSelect({
+                          keycode,
+                          rinban,
+                          syouhan,
+                          municipalityCode,
+                          municipalityName,
+                          layers: []
+                        })
+                      }
+                    }
+                  } catch (err) {
+                    console.error('層データ取得エラー:', err)
+                    // エラーでもコールバックを呼び出す（層データなし）
+                    if (onForestSelect) {
+                      onForestSelect({
+                        keycode,
+                        rinban,
+                        syouhan,
+                        municipalityCode,
+                        municipalityName,
+                        layers: []
+                      })
+                    }
+                  }
+                }
               }
               
               // クリックイベントを登録
               layer.on('click', clickHandler)
               
-              // レイヤーに選択状態フラグを追加
-              layer._isHighlighted = false
-              
-              // ホバー時のスタイル変更（選択状態を考慮）
+              // ホバー時のスタイル変更
               layer.on('mouseover', () => {
-                if (!layer._isHighlighted) {
-                  layer.setStyle({
-                    fillOpacity: 0.4,
-                    weight: 3
-                  })
-                }
+                layer.setStyle({
+                  fillOpacity: 0.4,
+                  weight: 3
+                })
               })
               
               layer.on('mouseout', () => {
-                if (!layer._isHighlighted) {
-                  layer.setStyle({
-                    fillOpacity: 0.15,
-                    weight: 2
-                  })
-                }
+                layer.setStyle({
+                  fillOpacity: 0.15,
+                  weight: 2
+                })
               })
             }
           })

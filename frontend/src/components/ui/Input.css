@@ -1,0 +1,148 @@
+@import '../../styles/tokens.css';
+
+.input-wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.input-wrapper--full-width {
+  width: 100%;
+}
+
+.input-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: var(--border-width) solid var(--border-default);
+  transition: all var(--transition-base);
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.input:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--border-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.input:disabled {
+  background: var(--bg-disabled);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.input--error {
+  border-color: var(--color-error);
+}
+
+.input--error:focus {
+  box-shadow: var(--focus-ring-error);
+}
+
+/* Sizes */
+.input--sm {
+  height: var(--input-height-sm);
+  padding: 0 var(--spacing-2);
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-sm);
+}
+
+.input--base,
+.input--md {
+  height: var(--input-height-base);
+  padding: 0 var(--spacing-3);
+  font-size: var(--font-size-base);
+  border-radius: var(--radius-base);
+}
+
+.input--lg {
+  height: var(--input-height-lg);
+  padding: 0 var(--spacing-4);
+  font-size: var(--font-size-md);
+  border-radius: var(--radius-md);
+}
+
+/* Icon Support - アイコンとテキストが重ならないように十分なpadding */
+/* アイコン幅(20px) + 左余白(12px) + 右余白(8px) = 40px */
+.input--icon-left.input--sm {
+  padding-left: 36px !important;
+}
+
+.input--icon-left.input--base,
+.input--icon-left.input--md {
+  padding-left: 40px !important;
+}
+
+.input--icon-left.input--lg {
+  padding-left: 44px !important;
+}
+
+/* アイコン幅(20px) + 左余白(8px) + 右余白(12px) = 40px */
+.input--icon-right.input--sm {
+  padding-right: 36px !important;
+}
+
+.input--icon-right.input--base,
+.input--icon-right.input--md {
+  padding-right: 40px !important;
+}
+
+.input--icon-right.input--lg {
+  padding-right: 44px !important;
+}
+
+.input-icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.input-icon--left {
+  left: 12px;
+}
+
+.input-icon--right {
+  right: 12px;
+}
+
+/* Messages */
+.input-message {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.input-message--error {
+  color: var(--color-error-text);
+}
+
+.input--full-width {
+  width: 100%;
+}

@@ -1,396 +1,784 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import L from 'leaflet'
 import Map from './Map'
-import axios from 'axios'
+import Header from './components/Header'
+import Sidebar from './components/Sidebar'
+import AttributeTable from './components/AttributeTable'
+import RightPanel from './components/RightPanel'
 import './App.css'
+import './components/components.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-// ポリゴン内判定（Ray casting algorithm）
-function isPointInPolygon(point, polygon) {
-  const [x, y] = point
-  let inside = false
-  
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i][0], yi = polygon[i][1]
-    const xj = polygon[j][0], yj = polygon[j][1]
-    
-    const intersect = ((yi > y) !== (yj > y))
-      && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)
-    
-    if (intersect) inside = !inside
-  }
-  
-  return inside
-}
-
-// MVP版: フロントエンドのみで簡易解析を実行
-function generateMockAnalysis(requestData) {
-  const { bbox, polygon_coords, forest_registry_id, is_multi_polygon } = requestData
-  
-  // 面積を計算（簡易版）
-  const latDiff = bbox.max_lat - bbox.min_lat
-  const lonDiff = bbox.max_lon - bbox.min_lon
-  const avgLat = (bbox.min_lat + bbox.max_lat) / 2
-  const areaKm2 = latDiff * 111 * lonDiff * 111 * Math.cos(avgLat * Math.PI / 180)
-  
-  // 樹木密度（1km²あたり800-1500本）
-  const treesPerKm2 = Math.floor(Math.random() * 700) + 800
-  const treeCount = Math.floor(areaKm2 * treesPerKm2)
-  
-  // 材積（1本あたり0.3-0.8m³）
-  const volumePerTree = Math.random() * 0.5 + 0.3
-  const totalVolume = treeCount * volumePerTree
-  
-  // ポリゴン座標を変換（ある場合）
-  let polygon = null
-  let multiPolygons = null
-  
-  if (polygon_coords && polygon_coords.length > 0) {
-    if (is_multi_polygon) {
-      // 複数ポリゴンの場合（札幌市全体など）
-      multiPolygons = polygon_coords.map(polyCoords => 
-        polyCoords.map(coord => [coord.lon || coord.lng, coord.lat])
-      )
-      console.log('複数ポリゴン判定を使用:', multiPolygons.length, '個のポリゴン')
-    } else {
-      // 単一ポリゴンの場合
-      polygon = polygon_coords.map(coord => [coord.lon || coord.lng, coord.lat])
-      console.log('ポリゴン判定を使用:', polygon.length, '頂点')
-    }
-  }
-  
-  // グリッド状にメッシュを生成（範囲を埋め尽くす）
-  const treePoints = []
-  
-  // メッシュサイズを動的に調整（最大5000メッシュまで）
-  const maxMeshes = 5000
-  let meshSizeM = 10 // 基本は10m四方
-  
-  // 仮のグリッド数を計算
-  let latStep = meshSizeM / 111000
-  let lonStep = meshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
-  let rows = Math.ceil(latDiff / latStep)
-  let cols = Math.ceil(lonDiff / lonStep)
-  let totalMeshes = rows * cols
-  
-  // メッシュ数が多すぎる場合はメッシュサイズを大きくする
-  if (totalMeshes > maxMeshes) {
-    const scaleFactor = Math.sqrt(totalMeshes / maxMeshes)
-    meshSizeM = meshSizeM * scaleFactor
-    latStep = meshSizeM / 111000
-    lonStep = meshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
-    rows = Math.ceil(latDiff / latStep)
-    cols = Math.ceil(lonDiff / lonStep)
-    totalMeshes = rows * cols
-    console.log(`メッシュサイズを調整: ${meshSizeM.toFixed(1)}m四方（メッシュ数を${maxMeshes}以下に制限）`)
-  }
-  
-  console.log(`グリッド生成: ${rows}行 x ${cols}列 = ${totalMeshes}メッシュ（${meshSizeM.toFixed(1)}m四方）`)
-  
-  // 自然な森林分布を模倣するノイズ関数（複数のスケールを組み合わせ）
-  const noise2D = (x, y, seed) => {
-    // 大きなスケールのノイズ（全体的な傾向）- より滑らかに
-    const large = Math.sin(x * 0.02 + seed) * Math.cos(y * 0.02 + seed * 1.3) * 0.5 + 0.5
-    // 中程度のスケールのノイズ（林分の違い）
-    const medium = Math.sin(x * 0.1 + seed * 2) * Math.cos(y * 0.1 + seed * 2.5) * 0.5 + 0.5
-    // 小さなスケールのノイズ（個体差）
-    const small = Math.sin(x * 0.4 + seed * 3) * Math.cos(y * 0.4 + seed * 3.7) * 0.5 + 0.5
-    // ランダムノイズ
-    const random = Math.random()
-    
-    // 組み合わせ（大きなスケールを重視して滑らかなグラデーションに）
-    return large * 0.5 + medium * 0.3 + small * 0.15 + random * 0.05
-  }
-  
-  const seed = Math.random() * 100
-  
-  // グリッド状に配置（自然な分布）
-  try {
-    for (let i = 0; i < rows && treePoints.length < maxMeshes; i++) {
-      for (let j = 0; j < cols && treePoints.length < maxMeshes; j++) {
-        const lat = bbox.min_lat + (i + 0.5) * latStep
-        const lon = bbox.min_lon + (j + 0.5) * lonStep
-        
-        // ポリゴンが指定されている場合は範囲内チェック
-        if (polygon && !isPointInPolygon([lon, lat], polygon)) {
-          continue
-        }
-        
-        // 複数ポリゴンが指定されている場合は、いずれかのポリゴン内かチェック
-        if (multiPolygons) {
-          let inAnyPolygon = false
-          for (const poly of multiPolygons) {
-            if (isPointInPolygon([lon, lat], poly)) {
-              inAnyPolygon = true
-              break
-            }
-          }
-          if (!inAnyPolygon) {
-            continue
-          }
-        }
-        
-        // ノイズ関数で材積を決定（グラデーション + ランダム性）
-        const volumeNoise = noise2D(i, j, seed)
-        const volume = 0.1 + volumeNoise * 1.4
-        
-        // 樹種を決定（針葉樹80%、広葉樹20%）
-        // ランダム関数を使用して確実に20%を広葉樹にする
-        const treeType = Math.random() > 0.2 ? 'coniferous' : 'broadleaf'
-        
-        // 胸高直径は材積に比例
-        const dbh = 15 + volumeNoise * 30
-        
-        treePoints.push({
-          lat,
-          lon,
-          tree_type: treeType,
-          dbh: Math.round(dbh * 10) / 10,
-          volume: Math.round(volume * 1000) / 1000
-        })
-      }
-    }
-  } catch (error) {
-    console.error('グリッド生成エラー:', error)
-    // エラー時は最低限のメッシュを生成
-    if (treePoints.length === 0) {
-      const centerLat = (bbox.min_lat + bbox.max_lat) / 2
-      const centerLon = (bbox.min_lon + bbox.max_lon) / 2
-      treePoints.push({
-        lat: centerLat,
-        lon: centerLon,
-        tree_type: 'coniferous',
-        dbh: 25,
-        volume: 0.5
-      })
-    }
-  }
-  
-  console.log(`生成されたメッシュ数: ${treePoints.length}`)
-  
-  // 針葉樹と広葉樹の本数を集計
-  const coniferousCount = treePoints.filter(p => p.tree_type === 'coniferous').length
-  const broadleafCount = treePoints.filter(p => p.tree_type === 'broadleaf').length
-  const totalTreeCount = coniferousCount + broadleafCount
-  
-  // 実際の材積を集計
-  const actualTotalVolume = treePoints.reduce((sum, p) => sum + p.volume, 0)
-  
-  console.log(`針葉樹: ${coniferousCount}本, 広葉樹: ${broadleafCount}本, 合計: ${totalTreeCount}本`)
-  console.log(`合計材積: ${actualTotalVolume.toFixed(2)} m³`)
-  
-  const warnings = [
-    `解析面積: ${areaKm2.toFixed(4)} km²`,
-    `検出本数: ${totalTreeCount.toLocaleString()}本（針葉樹: ${coniferousCount.toLocaleString()}本、広葉樹: ${broadleafCount.toLocaleString()}本）`,
-    `メッシュ数: ${treePoints.length}個（${meshSizeM.toFixed(1)}m四方グリッド）`
-  ]
-  
-  if (forest_registry_id) {
-    warnings.push(`森林簿ID: ${forest_registry_id}`)
-  }
-  
-  warnings.push('※MVP版: フロントエンドのみの簡易シミュレーションです')
-  warnings.push('※材積分布は滑らかなグラデーションで表示')
-  
-  return {
-    tree_count: totalTreeCount,
-    coniferous_count: coniferousCount,
-    broadleaf_count: broadleafCount,
-    volume_m3: Math.round(actualTotalVolume * 100) / 100,
-    confidence: areaKm2 < 0.01 || areaKm2 > 10 ? 'low' : 'medium',
-    warnings,
-    tree_points: treePoints,
-    polygon_coords: polygon_coords // ポリゴン座標を返す
-  }
-}
-
 function App() {
-  const [mode, setMode] = useState('map') // 'map', 'upload', 'chatbot'
-  const [fileId, setFileId] = useState(null)
-  const [fileMetadata, setFileMetadata] = useState(null)
-  const [imageBounds, setImageBounds] = useState(null)
-  const [imageQualityWarnings, setImageQualityWarnings] = useState([])
-  const [zoomToImage, setZoomToImage] = useState(0)
-  const [uploading, setUploading] = useState(false)
-  const [analyzing, setAnalyzing] = useState(false)
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState(null)
-  const [forestRegistryId, setForestRegistryId] = useState(null)
-  const [presetImages, setPresetImages] = useState([])
-  const [loadingPresets, setLoadingPresets] = useState(false)
-  const [imageLoaded, setImageLoaded] = useState(false)
-  const [chatMessages, setChatMessages] = useState([])
-  const [chatInput, setChatInput] = useState('')
-  
-  // 地図コントロール用のstate
-  const [drawMode, setDrawMode] = useState(false)
-  const [drawType, setDrawType] = useState('rectangle')
+  // State管理
+  const [theme, setTheme] = useState(() => {
+    // ローカルストレージからテーマを読み込む
+    return localStorage.getItem('theme') || 'light'
+  })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedMunicipality, setSelectedMunicipality] = useState([]) // 市町村フィルタ（複数選択）
+  const [activeTab, setActiveTab] = useState('layers')
   const [showAdminBoundaries, setShowAdminBoundaries] = useState(false)
-  const [showRivers, setShowRivers] = useState(false)
   const [showForestRegistry, setShowForestRegistry] = useState(false)
+  const [showRivers, setShowRivers] = useState(false)
   const [showSlope, setShowSlope] = useState(false)
   const [showContour, setShowContour] = useState(false)
-  const [slopeOpacity, setSlopeOpacity] = useState(0.6) // 陰影起伏図の透明度
-  const [contourOpacity, setContourOpacity] = useState(0.6) // 等高線の透明度
-  const [forestSearchQuery, setForestSearchQuery] = useState('')
-  const [selectedMunicipalityCode, setSelectedMunicipalityCode] = useState('') // 選択された市町村コード
-  const [municipalityOptions, setMunicipalityOptions] = useState([]) // 市町村コードのリスト
-  const [municipalityNames, setMunicipalityNames] = useState({}) // 市町村コード→名前のマッピング
-  const [hasShape, setHasShape] = useState(false) // 図形が描画されているか
-  const [sidebarVisible, setSidebarVisible] = useState(true) // サイドバーの表示/非表示
-  const [bottomPanelHeight, setBottomPanelHeight] = useState(100) // 下部パネルの高さ
-  const [isResizing, setIsResizing] = useState(false) // リサイズ中かどうか
+  const [slopeOpacity, setSlopeOpacity] = useState(0.7) // 傾斜図の透明度
+  const [contourOpacity, setContourOpacity] = useState(0.7) // 等高線の透明度
+  
+  // 描画モード
+  const [drawMode, setDrawMode] = useState(false)
+  const [drawType, setDrawType] = useState(null) // 'rectangle' or 'polygon'
+  
+  // チャットボット
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const [isChatProcessing, setIsChatProcessing] = useState(false)
+  
+  // 右パネル
+  const [rightPanelOpen, setRightPanelOpen] = useState(false)
+  const [selectedFeature, setSelectedFeature] = useState(null)
+  const [selectedRowId, setSelectedRowId] = useState(null)
+  
+  // 解析
+  const [analysisResult, setAnalysisResult] = useState(null)
+  const [analysisStatus, setAnalysisStatus] = useState('idle') // idle, analyzing, completed, error
+  const [treePoints, setTreePoints] = useState([]) // メッシュ表示用の樹木位置データ
+  
+  // 画像アップロード
+  const [presetImages, setPresetImages] = useState([])
+  const [selectedImageId, setSelectedImageId] = useState(null)
+  const [isLoadingImage, setIsLoadingImage] = useState(false)
+  const [imageMetadata, setImageMetadata] = useState(null)
+  const [imageBounds, setImageBounds] = useState(null)
+  
+  // テーブル
+  const [tableData, setTableData] = useState([])
+  const [tableHeight, setTableHeight] = useState(150)  // 初期高さを300→150に変更
+  const [isResizing, setIsResizing] = useState(false)
+  const [municipalityNames, setMunicipalityNames] = useState({})
+  
+  const tableRef = useRef(null)
+  const startYRef = useRef(0)
+  const startHeightRef = useRef(0)
 
-  // 下部パネルのリサイズ処理
+  // テーマをドキュメントに適用
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (isResizing) {
-        const newHeight = window.innerHeight - e.clientY
-        if (newHeight >= 50 && newHeight <= 500) {
-          setBottomPanelHeight(newHeight)
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  // テーマ切り替え
+  const toggleTheme = () => {
+    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light')
+  }
+
+  // 市町村コードマスターを取得
+  useEffect(() => {
+    fetch(`${API_URL}/api/municipality-codes`)
+      .then(res => res.json())
+      .then(data => {
+        console.log('市町村コードマスター取得:', data)
+        setMunicipalityNames(data)
+      })
+      .catch(err => {
+        console.error('市町村コードマスター取得エラー:', err)
+        // デフォルト値を設定（2桁の市町村コード）
+        setMunicipalityNames({
+          '01': '松前町',
+          '02': '福島町',
+          '03': '知内町',
+          '04': '木古内町',
+          '05': '七飯町',
+          '07': '鹿部町',
+          '13': '森町',
+          '15': '八雲町',
+          '16': '長万部町',
+          '17': '江差町',
+          '19': '上ノ国町'
+        })
+      })
+  }, [])
+
+  // プリセット画像リストを取得
+  useEffect(() => {
+    // MVP版: バックエンドAPIを使わず、静的な画像リストを使用
+    const staticImages = [{
+      id: '02_GE_modified',
+      filename: '02_GE_modified.png',
+      path: 'sample-images/02_GE_modified.png'
+    }]
+    
+    console.log('[App.jsx] プリセット画像リスト（静的）:', staticImages)
+    setPresetImages(staticImages)
+  }, [])
+
+  // 検索実行
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return
+    console.log('[App.jsx] 検索実行:', searchQuery, '市町村:', selectedMunicipality)
+    
+    // Map.jsxのグローバル検索関数を呼び出す
+    if (window.handleForestSearch) {
+      // 森林簿レイヤーが表示されていない場合は表示する
+      if (!showForestRegistry) {
+        setShowForestRegistry(true)
+        // レイヤーが読み込まれるまで少し待つ
+        setTimeout(() => {
+          window.handleForestSearch(searchQuery, selectedMunicipality) // 配列として渡す
+        }, 500)
+      } else {
+        window.handleForestSearch(searchQuery, selectedMunicipality) // 配列として渡す
+      }
+    } else {
+      console.error('[App.jsx] window.handleForestSearch が定義されていません')
+      alert('地図が読み込まれていません。少し待ってから再度お試しください。')
+    }
+  }
+
+  // レイヤートグル
+  const handleToggleLayer = (layerType) => {
+    switch(layerType) {
+      case 'admin':
+        setShowAdminBoundaries(!showAdminBoundaries)
+        break
+      case 'forest':
+        setShowForestRegistry(!showForestRegistry)
+        break
+      case 'rivers':
+        setShowRivers(!showRivers)
+        break
+      case 'slope':
+        setShowSlope(!showSlope)
+        break
+      case 'contour':
+        setShowContour(!showContour)
+        break
+    }
+  }
+
+  // 描画モード変更
+  const handleDrawModeChange = (enabled, type) => {
+    console.log('[App.jsx] 描画モード変更:', enabled, type)
+    setDrawMode(enabled)
+    setDrawType(type)
+  }
+
+  // 地図からの解析（描画図形から）
+  const handleMapAnalyze = (bounds, polygonCoords = null) => {
+    console.log('[App.jsx] 地図からの解析開始')
+    console.log('[App.jsx] bounds:', bounds)
+    console.log('[App.jsx] polygonCoords:', polygonCoords)
+    
+    setRightPanelOpen(true)
+    setAnalysisStatus('analyzing')
+    
+    // 境界から座標を取得
+    const minLat = bounds.getSouth()
+    const maxLat = bounds.getNorth()
+    const minLon = bounds.getWest()
+    const maxLon = bounds.getEast()
+    
+    console.log('[App.jsx] 解析範囲:', { minLat, maxLat, minLon, maxLon })
+    
+    // シミュレーション：3秒後に結果を返す
+    setTimeout(() => {
+      // メッシュ表示用の樹木位置データを生成
+      const mockTreePoints = []
+      
+      // メッシュサイズを計算（50m x 50m）
+      const meshSizeM = 50
+      const avgLat = (minLat + maxLat) / 2
+      const latStep = meshSizeM / 111000
+      const lonStep = meshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
+      
+      console.log('[App.jsx] メッシュサイズ:', meshSizeM, 'm x', meshSizeM, 'm')
+      console.log('[App.jsx] 解析範囲:', { minLat, maxLat, minLon, maxLon })
+      console.log('[App.jsx] ステップ:', { latStep, lonStep })
+      
+      // グリッド状に樹木位置を生成（図形全体を埋め尽くす）
+      let treeIndex = 0
+      
+      for (let lat = minLat; lat < maxLat; lat += latStep) {
+        for (let lon = minLon; lon < maxLon; lon += lonStep) {
+          // グリッドの中心に配置
+          const centerLat = lat + latStep / 2
+          const centerLon = lon + lonStep / 2
+          
+          // 境界チェック
+          if (centerLat <= maxLat && centerLon <= maxLon) {
+            // 針葉樹と広葉樹をランダムに配置（針葉樹67%）
+            const isConiferous = Math.random() < 0.67
+            
+            mockTreePoints.push({
+              lat: centerLat,
+              lon: centerLon,
+              tree_type: isConiferous ? 'coniferous' : 'broadleaf',
+              dbh: 20 + Math.random() * 40, // 胸高直径 20-60cm
+              volume: 0.5 + Math.random() * 3 // 材積 0.5-3.5m³
+            })
+            
+            treeIndex++
+          }
         }
       }
+      
+      // 実際に生成された樹木数でカウントを更新
+      const actualConiferousCount = mockTreePoints.filter(p => p.tree_type === 'coniferous').length
+      const actualBroadleafCount = mockTreePoints.filter(p => p.tree_type === 'broadleaf').length
+      const totalVolume = mockTreePoints.reduce((sum, p) => sum + p.volume, 0)
+      
+      console.log('[App.jsx] 生成されたメッシュ数:', mockTreePoints.length, '個')
+      console.log('[App.jsx] 針葉樹:', actualConiferousCount, '本、広葉樹:', actualBroadleafCount, '本')
+      
+      const mockResult = {
+        tree_count: mockTreePoints.length,
+        coniferous_count: actualConiferousCount,
+        broadleaf_count: actualBroadleafCount,
+        total_volume: Math.round(totalVolume),
+        volume: Math.round(totalVolume),
+        volume_m3: Math.round(totalVolume),
+        tree_points: mockTreePoints, // メッシュ表示用
+        polygon_coords: polygonCoords, // ポリゴン座標を保存
+        warnings: ['境界付近の樹木は検出精度が低下する可能性があります', 'MVP版：簡易シミュレーションです']
+      }
+      
+      setAnalysisResult(mockResult)
+      setAnalysisStatus('completed')
+      setTreePoints(mockTreePoints) // メッシュ表示用データをセット
+      
+      console.log('[App.jsx] 解析完了、樹木位置データ:', mockTreePoints.length, '本（グリッド配置）')
+      console.log('[App.jsx] メッシュサイズ:', meshSizeM, 'm x', meshSizeM, 'm')
+    }, 3000)
+  }
+
+  // 地図上の地物クリック（森林簿選択）
+  const handleFeatureClick = (feature) => {
+    console.log('[App.jsx] ========== handleFeatureClick 開始 ==========')
+    console.log('[App.jsx] feature:', feature)
+    console.log('[App.jsx] 層データ:', feature.layers)
+    console.log('[App.jsx] 選択解除フラグ:', feature.isDeselect)
+    
+    // 選択解除の場合
+    if (feature.isDeselect) {
+      console.log('[App.jsx] 選択解除処理')
+      setTableData(prevTableData => {
+        const newTableData = prevTableData.filter(row => row.keycode !== feature.keycode)
+        console.log('[App.jsx] 選択解除後のtableData:', newTableData)
+        return newTableData
+      })
+      return
+    }
+    
+    // テーブルに追加（重複チェックはsetTableData内で行う）
+    setTableData(prevTableData => {
+      console.log('[App.jsx] 現在のtableData:', prevTableData)
+      console.log('[App.jsx] tableData.length:', prevTableData.length)
+      
+      // テーブルから該当行を探す
+      const existingIndex = prevTableData.findIndex(row => row.keycode === feature.keycode)
+      console.log('[App.jsx] existingIndex:', existingIndex)
+      
+      if (existingIndex !== -1) {
+        // 既にテーブルにある場合はスキップ（重複追加を防ぐ）
+        console.log('[App.jsx] 既にテーブルに存在します:', existingIndex)
+        console.log('[App.jsx] スキップします')
+        return prevTableData // 変更なし
+      }
+      
+      console.log('[App.jsx] 新規追加処理を開始')
+      
+      // 層データから詳細情報を抽出（第1層の情報を使用）
+      const firstLayer = feature.layers && feature.layers.length > 0 ? feature.layers[0] : null
+      console.log('[App.jsx] 第1層データ:', firstLayer)
+      
+      // 面積を計算（層データから）
+      let totalArea = '—'
+      if (firstLayer && firstLayer['面積']) {
+        const areaValue = parseFloat(firstLayer['面積'])
+        if (!isNaN(areaValue)) {
+          totalArea = areaValue.toFixed(2)
+        }
+      }
+      
+      // 森林種類を取得（コードまたは名前）
+      const forestType = firstLayer ? (
+        firstLayer['森林の種類1名'] || 
+        firstLayer['森林の種類1コード'] ||
+        '—'
+      ) : '—'
+      
+      // 林種を取得（名前またはコード）
+      const rinshu = firstLayer ? (
+        firstLayer['林種名'] ||
+        firstLayer['林種コード'] ||
+        '—'
+      ) : '—'
+      
+      // 樹種を取得（名前またはコード）
+      const speciesCode = firstLayer ? (
+        firstLayer['樹種1名'] ||
+        firstLayer['樹種1コード'] ||
+        '—'
+      ) : '—'
+      
+      // 林齢を取得
+      const age = firstLayer ? (
+        firstLayer['林齢'] ||
+        '—'
+      ) : '—'
+      
+      // 複層区分を取得（複数層がある場合は両方表示）
+      let fukusouKubun = '—'
+      if (feature.layers && feature.layers.length > 0) {
+        console.log('[App.jsx] 複層区分を抽出:', feature.layers)
+        
+        const kubunValues = feature.layers
+          .map((layer, idx) => {
+            console.log(`[App.jsx] 層${idx + 1}:`, layer)
+            
+            // 複数のフィールド名を試す
+            const kubun = layer['複層区分名'] || 
+                         layer['複層区分コード'] || 
+                         layer['複層区分'] ||
+                         layer['fukusou_kubun'] ||
+                         layer['fukusouKubun']
+            
+            console.log(`[App.jsx] 複層区分 (層${idx + 1}):`, kubun)
+            return kubun
+          })
+          .filter(val => val !== undefined && val !== null && val !== '—' && val !== 'NULL' && val !== '')
+          .map(val => String(val)) // 数値の場合も文字列に変換
+        
+        console.log('[App.jsx] 抽出された複層区分:', kubunValues)
+        
+        if (kubunValues.length > 0) {
+          fukusouKubun = kubunValues.join(' / ')
+          console.log('[App.jsx] 結合後の複層区分:', fukusouKubun)
+        }
+      }
+      
+      // 複数層がある場合は、各層を別々の行として追加
+      const newRows = []
+      
+      if (feature.layers && feature.layers.length > 1) {
+        // 複層の場合：各層を別々の行として作成
+        feature.layers.forEach((layer, layerIndex) => {
+          // 面積を計算
+          let layerArea = '—'
+          if (layer['面積']) {
+            const areaValue = parseFloat(layer['面積'])
+            if (!isNaN(areaValue)) {
+              layerArea = areaValue.toFixed(2)
+            }
+          }
+          
+          // 森林種類を取得
+          const layerForestType = layer['森林の種類1名'] || 
+                                  layer['森林の種類1コード'] ||
+                                  '—'
+          
+          // 林種を取得
+          const layerRinshu = layer['林種名'] ||
+                             layer['林種コード'] ||
+                             '—'
+          
+          // 樹種を取得
+          const layerSpecies = layer['樹種1名'] ||
+                              layer['樹種1コード'] ||
+                              '—'
+          
+          // 林齢を取得
+          const layerAge = layer['林齢'] || '—'
+          
+          // 複層区分を取得
+          const layerFukusouKubun = layer['複層区分名'] || 
+                                   layer['複層区分コード'] || 
+                                   layer['複層区分'] ||
+                                   '—'
+          
+          newRows.push({
+            id: `${feature.keycode}_layer${layerIndex + 1}`,
+            keycode: feature.keycode,
+            rinban: feature.rinban || '—',
+            shoban: feature.syouhan || '—',
+            municipalityName: feature.municipalityName || '—',
+            area: layerArea,
+            forestType: layerForestType,
+            rinshu: layerRinshu,
+            species: layerSpecies,
+            age: layerAge,
+            layerCount: feature.layers.length,
+            layerIndex: layerIndex + 1, // 第何層か
+            fukusouKubun: String(layerFukusouKubun),
+            layers: feature.layers || [],
+            isMultiLayer: true
+          })
+        })
+      } else {
+        // 単層の場合：1行のみ
+        newRows.push({
+          id: feature.keycode,
+          keycode: feature.keycode,
+          rinban: feature.rinban || '—',
+          shoban: feature.syouhan || '—',
+          municipalityName: feature.municipalityName || '—',
+          area: totalArea,
+          forestType: forestType,
+          rinshu: rinshu,
+          species: speciesCode,
+          age: age,
+          layerCount: feature.layers?.length || 1,
+          layerIndex: null,
+          fukusouKubun: fukusouKubun,
+          layers: feature.layers || [],
+          isMultiLayer: false
+        })
+      }
+      
+      console.log('[App.jsx] 新しい行:', newRows)
+      console.log('[App.jsx] 新しい行の複層区分:', newRows.map(r => r.fukusouKubun))
+      const newTableData = [...prevTableData, ...newRows]
+      console.log('[App.jsx] 追加後のtableData:', newTableData)
+      console.log('[App.jsx] 追加後のtableData.length:', newTableData.length)
+      console.log('[App.jsx] ========== handleFeatureClick 終了 ==========')
+      
+      return newTableData
+    })
+    
+    // 選択行IDを更新
+    setSelectedRowId(prev => {
+      // 最新のtableDataの長さを取得するため、少し遅延させる
+      setTimeout(() => {
+        setSelectedRowId(tableData.length)
+      }, 0)
+      return prev
+    })
+  }
+
+  // テーブル行選択
+  const handleRowSelect = (rowData, index) => {
+    console.log('[v0] テーブル行選択:', rowData, index)
+    setSelectedFeature(rowData)
+    setSelectedRowId(index)
+    setRightPanelOpen(true)
+  }
+
+  // テーブル行詳細ボタン
+  const handleRowDetail = (rowData, index) => {
+    console.log('[v0] 詳細ボタン:', rowData, index)
+    setSelectedFeature(rowData)
+    setSelectedRowId(index)
+    setRightPanelOpen(true)
+  }
+
+  // 解析開始（テーブルの解析ボタンから呼ばれる）
+  const handleAnalyze = (rowData) => {
+    console.log('[App.jsx] 解析開始:', rowData)
+    console.log('[App.jsx] isMultiple:', rowData.isMultiple)
+    console.log('[App.jsx] bounds:', rowData.bounds)
+    console.log('[App.jsx] polygons:', rowData.polygons?.length)
+    
+    setSelectedFeature(rowData)
+    setRightPanelOpen(true)
+    setAnalysisStatus('analyzing')
+    
+    // 選択された小班の位置情報を取得
+    let forestBounds
+    
+    // 複数小班の場合は渡されたboundsを使用
+    if (rowData.isMultiple && rowData.bounds) {
+      forestBounds = rowData.bounds
+      console.log('[App.jsx] 複数小班の解析:', rowData.polygons?.length, '個のポリゴン')
+    } else {
+      // 単一小班の場合はグローバル変数から取得
+      forestBounds = window.currentForestBounds
+    }
+    
+    // シミュレーション：3秒後に結果を返す
+    setTimeout(() => {
+      // メッシュ表示用の樹木位置データを生成
+      const mockTreePoints = []
+      
+      // 選択された小班の境界を使用
+      let minLat, maxLat, minLon, maxLon
+      
+      if (forestBounds) {
+        minLat = forestBounds._southWest.lat
+        maxLat = forestBounds._northEast.lat
+        minLon = forestBounds._southWest.lng
+        maxLon = forestBounds._northEast.lng
+        
+        console.log('[App.jsx] 小班の境界:', { minLat, maxLat, minLon, maxLon })
+      } else {
+        // フォールバック: 函館中心
+        minLat = 41.765
+        maxLat = 41.775
+        minLon = 140.725
+        maxLon = 140.735
+        console.log('[App.jsx] 小班境界が見つかりません。デフォルト位置を使用')
+      }
+      
+      // メッシュサイズを計算（50m x 50m）
+      const meshSizeM = 50
+      const avgLat = (minLat + maxLat) / 2
+      const latStep = meshSizeM / 111000
+      const lonStep = meshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
+      
+      // 複数小班の場合は樹木数を増やす
+      const polygonCount = rowData.isMultiple && rowData.polygons ? rowData.polygons.length : 1
+      const baseTreeCount = 120
+      const totalTrees = baseTreeCount * polygonCount
+      const coniferousRatio = 0.67 // 針葉樹の割合
+      const coniferousCount = Math.floor(totalTrees * coniferousRatio)
+      
+      console.log('[App.jsx] ポリゴン数:', polygonCount)
+      console.log('[App.jsx] 予定樹木数:', totalTrees, '本（針葉樹:', coniferousCount, '本）')
+      
+      // グリッド状に樹木位置を生成（隙間なく、重複なし）
+      let treeIndex = 0
+      
+      for (let lat = minLat; lat < maxLat && treeIndex < totalTrees; lat += latStep) {
+        for (let lon = minLon; lon < maxLon && treeIndex < totalTrees; lon += lonStep) {
+          // グリッドの中心に配置
+          const centerLat = lat + latStep / 2
+          const centerLon = lon + lonStep / 2
+          
+          // 境界チェック
+          if (centerLat <= maxLat && centerLon <= maxLon) {
+            const isConiferous = treeIndex < coniferousCount
+            
+            mockTreePoints.push({
+              lat: centerLat,
+              lon: centerLon,
+              tree_type: isConiferous ? 'coniferous' : 'broadleaf',
+              dbh: 20 + Math.random() * 40, // 胸高直径 20-60cm
+              volume: 0.5 + Math.random() * 3 // 材積 0.5-3.5m³
+            })
+            
+            treeIndex++
+          }
+        }
+      }
+      
+      // 実際に生成された樹木数でカウントを更新
+      const actualConiferousCount = mockTreePoints.filter(p => p.tree_type === 'coniferous').length
+      const actualBroadleafCount = mockTreePoints.filter(p => p.tree_type === 'broadleaf').length
+      const totalVolume = mockTreePoints.reduce((sum, p) => sum + p.volume, 0)
+      
+      const mockResult = {
+        tree_count: mockTreePoints.length,
+        coniferous_count: actualConiferousCount,
+        broadleaf_count: actualBroadleafCount,
+        total_volume: Math.round(totalVolume),
+        volume: Math.round(totalVolume),
+        volume_m3: Math.round(totalVolume),
+        tree_points: mockTreePoints, // メッシュ表示用
+        warnings: ['境界付近の樹木は検出精度が低下する可能性があります'],
+        polygon_count: polygonCount // 解析した小班数
+      }
+      
+      setAnalysisResult(mockResult)
+      setAnalysisStatus('completed')
+      setTreePoints(mockTreePoints) // メッシュ表示用データをセット
+      
+      console.log('[App.jsx] 解析完了、樹木位置データ:', mockTreePoints.length, '本（グリッド配置）')
+      console.log('[App.jsx] メッシュサイズ:', meshSizeM, 'm x', meshSizeM, 'm')
+      
+      // テーブルデータを更新（材積とステータス）
+      const rowIndex = tableData.findIndex(row => row.keycode === rowData.keycode)
+      if (rowIndex !== -1) {
+        const newTableData = [...tableData]
+        newTableData[rowIndex] = {
+          ...newTableData[rowIndex],
+          volume: mockResult.volume,
+          status: 'completed'
+        }
+        setTableData(newTableData)
+      }
+    }, 3000)
+  }
+
+  // 選択した複数小班を解析
+  const handleAnalyzeSelected = (selectedData) => {
+    console.log('[App.jsx] ========== handleAnalyzeSelected 開始 ==========')
+    console.log('[App.jsx] 選択した小班を解析:', selectedData?.length || 0, '件')
+    console.log('[App.jsx] selectedData:', selectedData)
+    
+    if (!selectedData || selectedData.length === 0) {
+      console.log('[App.jsx] 小班が選択されていません')
+      alert('小班を選択してください。')
+      return
+    }
+    
+    // 選択された小班のkeycodeを取得
+    const selectedKeycodes = selectedData.map(row => row.keycode)
+    console.log('[App.jsx] 選択されたKEYCODE:', selectedKeycodes)
+    
+    // Map.jsxのグローバル関数を使用して、選択された小班のみを解析
+    // highlightedLayersMapから選択された小班のみをフィルタリング
+    if (window.highlightedLayersMap) {
+      const highlightedLayers = window.highlightedLayersMap
+      console.log('[App.jsx] highlightedLayersMap.size:', highlightedLayers.size)
+      
+      // 選択された小班のポリゴンを収集
+      const selectedPolygons = []
+      let minLat = Infinity, maxLat = -Infinity
+      let minLon = Infinity, maxLon = -Infinity
+      
+      selectedKeycodes.forEach(keycode => {
+        const layer = highlightedLayers.get(keycode)
+        console.log('[App.jsx] keycode:', keycode, 'layer:', layer)
+        
+        if (layer) {
+          // layerが単一レイヤーかGeoJSONレイヤーグループかを判定
+          if (layer.getLatLngs) {
+            // 単一レイヤーの場合（Map.jsxで保存されているのは単一レイヤー）
+            console.log('[App.jsx] 単一レイヤーを処理:', keycode)
+            let latLngs = layer.getLatLngs()
+            while (Array.isArray(latLngs[0]) && latLngs[0].lat === undefined) {
+              latLngs = latLngs[0]
+            }
+            
+            // 座標を配列に変換
+            const coords = latLngs.map(latLng => ({
+              lat: latLng.lat,
+              lng: latLng.lng
+            }))
+            selectedPolygons.push(coords)
+            
+            // 境界を計算
+            coords.forEach(coord => {
+              minLat = Math.min(minLat, coord.lat)
+              maxLat = Math.max(maxLat, coord.lat)
+              minLon = Math.min(minLon, coord.lng)
+              maxLon = Math.max(maxLon, coord.lng)
+            })
+          } else if (layer.eachLayer) {
+            // GeoJSONレイヤーグループの場合
+            console.log('[App.jsx] レイヤーグループを処理:', keycode)
+            layer.eachLayer((l) => {
+              let latLngs = l.getLatLngs()
+              while (Array.isArray(latLngs[0]) && latLngs[0].lat === undefined) {
+                latLngs = latLngs[0]
+              }
+              
+              // 座標を配列に変換
+              const coords = latLngs.map(latLng => ({
+                lat: latLng.lat,
+                lng: latLng.lng
+              }))
+              selectedPolygons.push(coords)
+              
+              // 境界を計算
+              coords.forEach(coord => {
+                minLat = Math.min(minLat, coord.lat)
+                maxLat = Math.max(maxLat, coord.lat)
+                minLon = Math.min(minLon, coord.lng)
+                maxLon = Math.max(maxLon, coord.lng)
+              })
+            })
+          } else {
+            console.error('[App.jsx] レイヤーの型が不明:', layer)
+          }
+        }
+      })
+      
+      console.log('[App.jsx] 選択されたポリゴン数:', selectedPolygons.length)
+      console.log('[App.jsx] 解析範囲:', { minLat, maxLat, minLon, maxLon })
+      
+      if (selectedPolygons.length > 0) {
+        // 境界を作成
+        const bounds = L.latLngBounds([minLat, minLon], [maxLat, maxLon])
+        
+        // 解析を実行（複数ポリゴン）
+        handleAnalyze({ 
+          keycode: 'multiple',
+          bounds: bounds,
+          polygons: selectedPolygons,
+          isMultiple: true
+        })
+      } else {
+        console.error('[App.jsx] 選択された小班のポリゴンが見つかりません')
+        alert('選択された小班のデータが見つかりません。')
+      }
+    } else {
+      console.error('[App.jsx] window.highlightedLayersMap が定義されていません')
+      alert('地図データが読み込まれていません。')
+    }
+    
+    console.log('[App.jsx] ========== handleAnalyzeSelected 終了 ==========')
+  }
+
+  // 解析再試行
+  const handleRetryAnalysis = () => {
+    setAnalysisStatus('analyzing')
+    setAnalysisResult(null)
+    
+    // 再度解析を実行
+    setTimeout(() => {
+      const mockResult = {
+        tree_count: 120,
+        coniferous_count: 80,
+        broadleaf_count: 40,
+        total_volume: 350,
+        volume: 350,
+        volume_m3: 350,
+        warnings: ['境界付近の樹木は検出精度が低下する可能性があります']
+      }
+      setAnalysisResult(mockResult)
+      setAnalysisStatus('completed')
+    }, 3000)
+  }
+
+  // テーブルリサイズ開始
+  const handleResizeStart = (e) => {
+    e.preventDefault()
+    setIsResizing(true)
+    startYRef.current = e.clientY
+    startHeightRef.current = tableHeight
+  }
+
+  // テーブルリサイズ中
+  useEffect(() => {
+    if (!isResizing) return
+
+    const handleMouseMove = (e) => {
+      const deltaY = startYRef.current - e.clientY
+      const newHeight = Math.max(150, Math.min(window.innerHeight * 0.6, startHeightRef.current + deltaY))
+      setTableHeight(newHeight)
     }
 
     const handleMouseUp = () => {
       setIsResizing(false)
     }
 
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-      document.body.style.cursor = 'ns-resize'
-      document.body.style.userSelect = 'none'
-    }
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
     }
   }, [isResizing])
 
-  // サイドバーの表示/非表示が変更されたときにマップのサイズを再計算
+  // デモデータ初期化
   useEffect(() => {
-    if (window.mapInstance) {
-      // アニメーションが完了するまで少し待ってからinvalidateSizeを呼び出す
-      setTimeout(() => {
-        window.mapInstance.invalidateSize()
-      }, 350) // CSSのtransitionが0.3sなので、それより少し長めに設定
-    }
-  }, [sidebarVisible])
-
-  // 市町村コードマスターデータを読み込み
-  useEffect(() => {
-    const loadMunicipalityNames = async () => {
-      try {
-        const response = await fetch(`${API_URL}/api/municipality-codes`)
-        if (response.ok) {
-          const data = await response.json()
-          setMunicipalityNames(data)
-          console.log('市町村コードマスターデータ:', data)
-        }
-      } catch (err) {
-        console.error('市町村コードマスターデータの読み込みエラー:', err)
-      }
-    }
-    loadMunicipalityNames()
+    // 初期状態では空のテーブル（選択された小班のみ表示）
+    setTableData([])
   }, [])
 
-  // 森林簿レイヤーが表示されたときに市町村コードリストを取得
-  useEffect(() => {
-    if (showForestRegistry) {
-      // カスタムイベントリスナーを登録（Map.jsxから通知を受け取る）
-      const handleMunicipalityCodesUpdate = (event) => {
-        const codes = event.detail
-        console.log('市町村コードリストを更新:', codes)
-        setMunicipalityOptions(codes)
-      }
-      
-      window.addEventListener('municipalityCodesUpdated', handleMunicipalityCodesUpdate)
-      
-      // フォールバック: タイマーでも取得を試みる
-      const timer = setTimeout(() => {
-        if (window.getMunicipalityCodes) {
-          const codes = window.getMunicipalityCodes()
-          if (codes.length > 0) {
-            console.log('タイマーで市町村コードを取得:', codes)
-            setMunicipalityOptions(codes)
-          }
-        }
-      }, 1500)
-      
-      return () => {
-        window.removeEventListener('municipalityCodesUpdated', handleMunicipalityCodesUpdate)
-        clearTimeout(timer)
-      }
-    } else {
-      setMunicipalityOptions([])
-      setSelectedMunicipalityCode('')
-    }
-  }, [showForestRegistry])
-
-  const handleClearResults = useCallback(() => {
-    console.log('解析結果をクリアします')
-    setResult(null)
-    setError(null)
-    setForestRegistryId(null)
-  }, [])
-
-  // リセットボタンからのイベントを受け取ってレイヤー表示と森林簿検索を初期化
-  useEffect(() => {
-    const handleResetLayers = () => {
-      console.log('レイヤー表示を初期化します')
-      setShowAdminBoundaries(false)
-      setShowRivers(false)
-      setShowForestRegistry(false)
-      setShowSlope(false)
-      setShowContour(false)
-      setForestSearchQuery('')
-      setSelectedMunicipalityCode('')
-    }
-    
-    window.addEventListener('resetLayers', handleResetLayers)
-    
-    return () => {
-      window.removeEventListener('resetLayers', handleResetLayers)
-    }
-  }, [])
-
-  // プリセット画像リストを取得（MVP版：静的リスト）
-  useEffect(() => {
-    // MVP版: バックエンドAPIを使わず、静的な画像リストを使用
-    const baseUrl = import.meta.env.BASE_URL || '/'
-    const staticImages = [
-      {
-        id: '02_GE_modified',
-        filename: '02_GE_modified.tif',
-        path: `${baseUrl}sample-images/02_GE_modified.png`
-      }
-    ]
-    setPresetImages(staticImages)
-  }, [])
-
+  // プリセット画像選択
   const handlePresetImageSelect = async (imageId) => {
-    setLoadingPresets(true)
-    setImageLoaded(false)
-    setError(null)
-    setFileMetadata(null)
-    setImageQualityWarnings([])
-
+    console.log('[App.jsx] プリセット画像選択:', imageId)
+    setIsLoadingImage(true)
+    
     try {
-      // MVP版: バックエンドAPIを使わず、直接画像パスを設定
-      console.log('プリセット画像を選択:', imageId)
+      // MVP版: バックエンドAPIを使わず、直接画像パスと座標情報を設定
+      const imagePath = `sample-images/${imageId}.png`
       
-      // 画像のパスを設定（publicフォルダ内、PNG形式）
-      const baseUrl = import.meta.env.BASE_URL || '/'
-      const imagePath = `${baseUrl}sample-images/${imageId}.png`
-      
-      // ファイルIDとして画像パスを使用
-      setFileId(imagePath)
-      
-      // MVP版: TIFFファイルから取得した実際の座標情報
+      // TIFFファイルから取得した実際の座標情報（函館付近）
       const mockBbox = {
         min_lat: 41.794053826085,
         min_lon: 140.58585197971667,
@@ -398,145 +786,102 @@ function App() {
         max_lon: 140.5898721292174
       }
       
-      setFileMetadata({
+      const mockMetadata = {
         bbox: mockBbox,
         width: 1000,
         height: 1000,
-        crs: 'EPSG:4326'
-      })
+        crs: 'EPSG:4326',
+        has_geotiff: true,
+        warnings: [
+          'MVP版: TIFFファイルから座標情報を取得しました',
+          '位置: 北緯41.79度、東経140.58度（函館付近）'
+        ]
+      }
       
+      setImageMetadata(mockMetadata)
       setImageBounds(mockBbox)
+      setSelectedImageId(imagePath)  // 画像パスを保存
       
-      // 警告メッセージ
-      setImageQualityWarnings([
-        'MVP版: TIFFファイルから座標情報を取得しました',
-        '位置: 北緯41.79度、東経140.58度（函館付近）'
-      ])
+      console.log('[App.jsx] 画像パス:', imagePath)
+      console.log('[App.jsx] 画像境界:', mockBbox)
       
-      console.log('画像の境界（MVP版）:', mockBbox)
-      setImageLoaded(true)
+      // アップロードタブに切り替え（画像が表示されることを確認しやすくする）
+      setActiveTab('upload')
+      
+      // 成功メッセージ
+      alert(`画像「${imageId}.png」を読み込みました。\n地図上に表示されます。\n\n位置: 函館付近（北緯41.79度、東経140.58度）`)
+      
     } catch (err) {
-      console.error('プリセット画像読み込みエラー:', err)
-      setError('プリセット画像の読み込みに失敗しました')
-      setImageLoaded(true)
+      console.error('[App.jsx] プリセット画像読み込みエラー:', err)
+      alert('画像の読み込みに失敗しました。')
+      setSelectedImageId(null)
     } finally {
-      setLoadingPresets(false)
+      setIsLoadingImage(false)
     }
   }
 
-  const handleImageLoaded = useCallback(() => {
-    console.log('画像が地図上に読み込まれました')
-    setImageLoaded(true)
-  }, [])
+  // チャット送信処理
+  const handleChatSubmit = async () => {
+    if (!chatInput.trim() || isChatProcessing) return
 
-  const handleFileUploadClick = (event) => {
-    // MVP版：ファイル選択を促す代わりにサンプル画像使用を促す
-    event.preventDefault()
-    alert('🎯 MVP版のため、ファイルアップロード機能は無効です。\n\n上の「サンプル画像を使用（MVP）」セクションから画像を選択してください。')
-  }
-
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0]
-    if (!file) return
-
-    setUploading(true)
-    setError(null)
-    setFileMetadata(null)
-    setImageQualityWarnings([])
-
-    const formData = new FormData()
-    formData.append('file', file)
-
-    try {
-      const response = await axios.post(`${API_URL}/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      
-      console.log('アップロードレスポンス:', response.data)
-      
-      setFileId(response.data.file_id)
-      setFileMetadata(response.data.info)
-      
-      // 画像品質の警告を設定
-      if (response.data.info && response.data.info.warnings) {
-        setImageQualityWarnings(response.data.info.warnings)
-      }
-      
-      // GeoTIFF情報がある場合は地図を移動
-      if (response.data.info && response.data.info.bbox) {
-        console.log('画像の境界:', response.data.info.bbox)
-        setImageBounds(response.data.info.bbox)
-      } else {
-        console.warn('GeoTIFF情報が見つかりません:', response.data.info)
-        setError('警告: 画像に座標情報がありません。地図上に表示できません。')
-      }
-    } catch (err) {
-      console.error('アップロードエラー:', err)
-      setError(err.response?.data?.detail || 'アップロードに失敗しました。バックエンドAPIが必要です。')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const handleChatSubmit = useCallback(() => {
-    if (!chatInput.trim()) return
-    
     const userMessage = chatInput.trim()
     setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
     setChatInput('')
-    
-    // テスト用文言をチェック
+    setIsChatProcessing(true)
+
+    // 特定の文言をチェック
     if (userMessage === '札幌市全体の材積を解析したい。') {
-      setAnalyzing(true)
+      // 1. 考え中メッセージ
+      await new Promise(resolve => setTimeout(resolve, 800))
+      setChatMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: '札幌市全体の材積解析を開始します...',
+        isTyping: true 
+      }])
+
+      // 2. データ読み込み中
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      setChatMessages(prev => {
+        const newMessages = [...prev]
+        newMessages[newMessages.length - 1] = {
+          role: 'assistant',
+          content: '行政区域データを読み込んでいます...',
+          isTyping: true
+        }
+        return newMessages
+      })
+
+      // 3. 札幌市のポリゴンデータを読み込む
+      await new Promise(resolve => setTimeout(resolve, 1500))
       
-      // AIが考えているような演出を追加
-      ;(async () => {
-        // 1. 「考え中...」メッセージを表示
-        await new Promise(resolve => setTimeout(resolve, 800))
-        setChatMessages(prev => [...prev, { 
-          role: 'assistant', 
-          content: '札幌市全体の材積解析を開始します...',
-          isTyping: true 
-        }])
+      try {
+        let allPolygons = []
+        let minLat, maxLat, minLon, maxLon
         
-        // 2. データ読み込み中メッセージ
-        await new Promise(resolve => setTimeout(resolve, 1500))
-        setChatMessages(prev => {
-          const newMessages = [...prev]
-          newMessages[newMessages.length - 1] = {
-            role: 'assistant',
-            content: '画像データを解析中...',
-            isTyping: true
-          }
-          return newMessages
-        })
-        
-        // 3. 解析中メッセージ
-        await new Promise(resolve => setTimeout(resolve, 1500))
-        
-        // 札幌市の行政区域ポリゴンを読み込む
+        // 実際のGeoJSONデータを読み込む試み
         try {
           const baseUrl = import.meta.env.BASE_URL || '/'
           const adminUrl = `${baseUrl}data/administrative/admin_simple.geojson`
           const response = await fetch(adminUrl)
-          const data = await response.json()
           
-          // 札幌市のポリゴンを抽出
+          if (!response.ok) {
+            throw new Error('GeoJSONファイルが見つかりません')
+          }
+          
+          const data = await response.json()
+
+          // 札幌市のフィーチャーを抽出
           const sapporoFeatures = data.features.filter(feature => {
             const city = feature.properties.N03_004 || ''
             const ward = feature.properties.N03_005 || ''
-            return city.includes('札幌') || 
-                   ward.includes('中央') || ward.includes('北区') || ward.includes('東区') ||
-                   ward.includes('白石') || ward.includes('豊平') || ward.includes('南区') ||
-                   ward.includes('西区') || ward.includes('厚別') || ward.includes('手稲') ||
-                   ward.includes('清田')
+            return city.includes('札幌') || ward.includes('中央') || ward.includes('北区') || 
+                   ward.includes('東区') || ward.includes('白石') || ward.includes('豊平') || 
+                   ward.includes('南区') || ward.includes('西区') || ward.includes('厚別') || 
+                   ward.includes('手稲') || ward.includes('清田')
           })
-          
-          console.log('札幌市のフィーチャー:', sapporoFeatures.length)
-          
+
           if (sapporoFeatures.length > 0) {
-            // 全ての区のポリゴンを抽出して配列に格納
-            const allPolygons = []
+            // ポリゴン座標を抽出
             sapporoFeatures.forEach(feature => {
               if (feature.geometry.type === 'Polygon') {
                 const coords = feature.geometry.coordinates[0].map(coord => ({
@@ -554,13 +899,12 @@ function App() {
                 })
               }
             })
-            
-            console.log('札幌市の全ポリゴン数:', allPolygons.length)
-            
-            // 札幌市全体のbboxを計算
-            let minLat = Infinity, maxLat = -Infinity
-            let minLon = Infinity, maxLon = -Infinity
-            
+
+            // 境界を計算
+            minLat = Infinity
+            maxLat = -Infinity
+            minLon = Infinity
+            maxLon = -Infinity
             allPolygons.forEach(polygon => {
               polygon.forEach(coord => {
                 minLat = Math.min(minLat, coord.lat)
@@ -570,1876 +914,246 @@ function App() {
               })
             })
             
-            console.log('札幌市のbbox:', { minLat, maxLat, minLon, maxLon })
-            
-            // 他の解析と同じ方法で、generateMockAnalysisを直接呼び出す
-            const mockResult = generateMockAnalysis({
-              bbox: {
-                min_lat: minLat,
-                max_lat: maxLat,
-                min_lon: minLon,
-                max_lon: maxLon
-              },
-              polygon_coords: allPolygons, // 複数ポリゴンの配列を渡す
-              is_multi_polygon: true // 複数ポリゴンであることを示すフラグ
-            })
-            
-            // 札幌市の範囲情報を追加
-            mockResult.sapporo_bounds = {
-              min_lat: minLat,
-              max_lat: maxLat,
-              min_lon: minLon,
-              max_lon: maxLon
-            }
-            
-            // 複数ポリゴンの座標を上書き（Map.jsxで白い背景を表示するため）
-            // generateMockAnalysisが元のpolygon_coordsを返すので、ここで上書きする
-            mockResult.polygon_coords = allPolygons
-            mockResult.is_multi_polygon = true
-            
-            // 結果を設定
-            setResult(mockResult)
-            
-            // 4. 最終結果を表示
-            setChatMessages(prev => {
-              const newMessages = [...prev]
-              newMessages[newMessages.length - 1] = {
-                role: 'assistant',
-                content: `札幌市全体の材積を解析しました。\n\n検出本数: ${mockResult.tree_count.toLocaleString()}本\n材積: ${mockResult.volume_m3.toLocaleString()} m³\n\n地図上に札幌市の行政区域と材積分布のグリッドメッシュを表示しました。`
-              }
-              return newMessages
-            })
+            console.log('[チャット] 実際のGeoJSONから札幌市データを読み込みました:', allPolygons.length, 'ポリゴン')
+            console.log('[チャット] 計算された境界:', { minLat, maxLat, minLon, maxLon })
+            console.log('[チャット] 最初のポリゴンのサンプル座標:', allPolygons[0]?.slice(0, 3))
+          } else {
+            throw new Error('札幌市のフィーチャーが見つかりません')
           }
-        } catch (err) {
-          console.error('札幌市ポリゴンデータの読み込みエラー:', err)
-          setChatMessages(prev => [...prev, {
-            role: 'assistant',
-            content: 'エラーが発生しました。札幌市のデータを読み込めませんでした。'
-          }])
+        } catch (geoJsonError) {
+          // GeoJSONが読み込めない場合はモックデータを使用
+          console.warn('[チャット] GeoJSONの読み込みに失敗、モックデータを使用:', geoJsonError.message)
+          
+          // 札幌市の概算範囲（モックデータ）
+          minLat = 42.85
+          maxLat = 43.20
+          minLon = 141.05
+          maxLon = 141.55
+          
+          // 札幌市の大まかな矩形ポリゴンを生成
+          allPolygons = [[
+            { lat: minLat, lon: minLon },
+            { lat: minLat, lon: maxLon },
+            { lat: maxLat, lon: maxLon },
+            { lat: maxLat, lon: minLon },
+            { lat: minLat, lon: minLon }
+          ]]
+          
+          console.log('[チャット] モックデータで札幌市範囲を生成しました')
+        }
+
+        // 簡易解析を実行（モック）
+        const latDiff = maxLat - minLat
+        const lonDiff = maxLon - minLon
+        const avgLat = (minLat + maxLat) / 2
+        const areaKm2 = latDiff * 111 * lonDiff * 111 * Math.cos(avgLat * Math.PI / 180)
+        
+        const treesPerKm2 = Math.floor(Math.random() * 700) + 800
+        const treeCount = Math.floor(areaKm2 * treesPerKm2)
+        const volumePerTree = Math.random() * 0.5 + 0.3
+        const totalVolume = treeCount * volumePerTree
+
+        // メッシュデータを生成（実際のポリゴン範囲を使用）
+        const mockTreePoints = []
+        const meshSizeM = 500  // 500m四方（より大きく、全域をカバー）
+        const latStep = meshSizeM / 111000
+        const lonStep = meshSizeM / (111000 * Math.cos(avgLat * Math.PI / 180))
+        
+        const maxMeshes = 10000  // 上限を10000に増やす
+        let meshCount = 0
+        
+        console.log('[チャット] メッシュ生成範囲:', { minLat, maxLat, minLon, maxLon })
+        console.log('[チャット] メッシュサイズ:', meshSizeM, 'm四方')
+        console.log('[チャット] メッシュステップ:', { latStep, lonStep })
+        
+        // ポリゴン内判定関数
+        const isPointInPolygon = (point, polygon) => {
+          const [x, y] = point
+          let inside = false
+          for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            const xi = polygon[i].lon
+            const yi = polygon[i].lat
+            const xj = polygon[j].lon
+            const yj = polygon[j].lat
+            const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)
+            if (intersect) inside = !inside
+          }
+          return inside
         }
         
-        setAnalyzing(false)
-      })()
+        // グリッド生成（ポリゴン内のみ）
+        for (let lat = minLat; lat < maxLat && meshCount < maxMeshes; lat += latStep) {
+          for (let lon = minLon; lon < maxLon && meshCount < maxMeshes; lon += lonStep) {
+            const centerLat = lat + latStep / 2
+            const centerLon = lon + lonStep / 2
+            
+            // いずれかのポリゴン内にあるかチェック
+            let inAnyPolygon = false
+            for (const polygon of allPolygons) {
+              if (isPointInPolygon([centerLon, centerLat], polygon)) {
+                inAnyPolygon = true
+                break
+              }
+            }
+            
+            if (!inAnyPolygon) continue
+            
+            mockTreePoints.push({
+              lat: centerLat,
+              lon: centerLon,
+              tree_type: Math.random() > 0.2 ? 'coniferous' : 'broadleaf',
+              dbh: 15 + Math.random() * 30,
+              volume: 0.1 + Math.random() * 1.4
+            })
+            meshCount++
+          }
+        }
+
+        console.log('[チャット] 生成されたメッシュ数:', mockTreePoints.length)
+
+        const coniferousCount = mockTreePoints.filter(p => p.tree_type === 'coniferous').length
+        const broadleafCount = mockTreePoints.filter(p => p.tree_type === 'broadleaf').length
+
+        console.log('[チャット] メッシュデータ生成完了:', mockTreePoints.length, '個')
+        console.log('[チャット] 針葉樹:', coniferousCount, '個、広葉樹:', broadleafCount, '個')
+        console.log('[チャット] 範囲:', { minLat, maxLat, minLon, maxLon })
+        console.log('[チャット] サンプルメッシュ:', mockTreePoints.slice(0, 3))
+
+        // 解析結果を設定
+        setAnalysisResult({
+          tree_count: mockTreePoints.length,
+          coniferous_count: coniferousCount,
+          broadleaf_count: broadleafCount,
+          volume_m3: Math.round(totalVolume),
+          tree_points: mockTreePoints,
+          polygon_coords: allPolygons,
+          is_multi_polygon: true,
+          sapporo_bounds: { min_lat: minLat, max_lat: maxLat, min_lon: minLon, max_lon: maxLon }
+        })
+        setTreePoints(mockTreePoints)
+        setAnalysisStatus('completed')
+
+        console.log('[チャット] setTreePoints実行完了:', mockTreePoints.length, '個')
+        console.log('[チャット] setAnalysisResult実行完了')
+
+        // 最終メッセージ
+        setChatMessages(prev => {
+          const newMessages = [...prev]
+          newMessages[newMessages.length - 1] = {
+            role: 'assistant',
+            content: `札幌市全体の材積を解析しました。\n\n検出本数: ${mockTreePoints.length.toLocaleString()}本\n材積: ${Math.round(totalVolume).toLocaleString()} m³\n\n地図上に札幌市の行政区域と材積分布のグリッドメッシュを表示しました。`
+          }
+          return newMessages
+        })
+      } catch (err) {
+        console.error('札幌市解析エラー:', err)
+        setChatMessages(prev => [...prev, {
+          role: 'assistant',
+          content: 'エラーが発生しました。解析を実行できませんでした。'
+        }])
+      }
     } else {
       // テスト用文言以外の場合
+      await new Promise(resolve => setTimeout(resolve, 500))
       setChatMessages(prev => [...prev, {
         role: 'assistant',
         content: 'MVP版では、テスト用の文言のみ対応しています。\n\n以下の文言をコピーして入力してください：\n「札幌市全体の材積を解析したい。」'
       }])
     }
-  }, [chatInput])
 
-  const handleAnalyze = useCallback(async (bounds, polygonCoords = null, registryId = null, isMultiPolygon = false) => {
-    // モードB（画像アップロード）の場合はファイル必須
-    if (mode === 'upload' && !fileId) {
-      setError('先に画像ファイルをアップロードしてください')
-      return
-    }
-
-    setAnalyzing(true)
-    setError(null)
-    // 結果はクリアしない（前の結果を残す）
-    // setResult(null)
-
-    try {
-      const requestData = {
-        mode: mode,
-        file_id: fileId || null,
-        bbox: {
-          min_lat: bounds.getSouth(),
-          min_lon: bounds.getWest(),
-          max_lat: bounds.getNorth(),
-          max_lon: bounds.getEast()
-        }
-      }
-      
-      // ポリゴン座標がある場合は追加
-      if (polygonCoords && polygonCoords.length > 0) {
-        // 複数ポリゴンの場合
-        if (isMultiPolygon) {
-          console.log('複数ポリゴン解析:', polygonCoords.length, '個')
-          requestData.polygon_coords = polygonCoords
-          requestData.is_multi_polygon = true
-        } else {
-          // 単一ポリゴンの場合
-          requestData.polygon_coords = polygonCoords.map(coord => ({
-            lat: coord.lat,
-            lon: coord.lng || coord.lon
-          }))
-        }
-      }
-      
-      // 森林簿IDがある場合は追加
-      if (registryId) {
-        requestData.forest_registry_id = registryId
-      }
-
-      console.log('解析リクエスト:', requestData)
-      
-      // MVP版: フロントエンドのみで簡易解析
-      const mockResult = generateMockAnalysis(requestData)
-      setResult(mockResult)
-    } catch (err) {
-      setError(err.response?.data?.detail || '解析に失敗しました')
-    } finally {
-      setAnalyzing(false)
-    }
-  }, [mode, fileId])
-  
-  // グローバル関数として森林簿解析を登録（ポップアップから呼び出すため）
-  useEffect(() => {
-    // aパターン: まるごと解析
-    window.analyzeForestRegistryWhole = () => {
-      const registryId = window.currentForestRegistryId
-      const bounds = window.currentForestBounds
-      
-      console.log('森林簿解析を開始（まるごと）:', registryId)
-      setForestRegistryId(registryId)
-      // モードはそのまま（'map' または 'upload'）
-      
-      // グローバル変数からポリゴン座標を取得
-      let polygonCoords = null
-      if (window.currentForestPolygon && Array.isArray(window.currentForestPolygon)) {
-        // Leafletの座標形式を変換
-        polygonCoords = window.currentForestPolygon.map(latLng => ({
-          lat: latLng.lat,
-          lng: latLng.lng
-        }))
-        console.log('ポリゴン座標を使用:', polygonCoords.length, '頂点')
-      }
-      
-      handleAnalyze(bounds, polygonCoords, registryId)
-    }
-    
-    // bパターン: 範囲を指定
-    window.analyzeForestRegistryPartial = () => {
-      const registryId = window.currentForestRegistryId
-      console.log('森林簿解析（範囲指定モード）:', registryId)
-      setForestRegistryId(registryId)
-      // モードはそのまま（'map' または 'upload'）
-      
-      // 範囲指定モードを有効化（Mapコンポーネントに通知）
-      window.forestRegistryPartialMode = true
-      console.log('範囲指定モードを有効化しました:', window.forestRegistryPartialMode)
-      
-      // すべてのポップアップを閉じる
-      if (window.mapInstance) {
-        window.mapInstance.closePopup()
-        
-        // 森林簿レイヤーのz-indexはそのまま（450）
-        // 描画レイヤー（overlayPane、z-index: 400）より高いが、
-        // クリックイベントは無効化されているので描画は可能
-        const pane = window.mapInstance.getPane('forestRegistryPane')
-        if (pane) {
-          console.log('森林簿レイヤーのz-indexを維持:', pane.style.zIndex)
-        }
-        
-        // 森林簿レイヤーのすべてのポップアップをアンバインドし、クリックイベントを無効化
-        if (window.forestRegistryLayer) {
-          window.forestRegistryLayer.eachLayer(layer => {
-            layer.unbindPopup()
-            layer.off('click') // クリックイベントを完全に削除
-            // 透明度を下げる（うっすらと見えるようにする）
-            layer.setStyle({ opacity: 0.3, fillOpacity: 0.05 })
-          })
-          console.log('森林簿レイヤーのポップアップとクリックイベントを無効化し、透明度を下げました')
-        }
-      }
-      
-      // アラートを表示
-      alert('地図上で矩形またはポリゴンを描画してください。\n\n矩形: 左側の「▭ 矩形」ボタンをクリック\nポリゴン: 左側の「⬡ ポリゴン」ボタンをクリック')
-      console.log('アラート表示後、範囲指定モード:', window.forestRegistryPartialMode)
-    }
-    
-    return () => {
-      delete window.analyzeForestRegistryWhole
-      delete window.analyzeForestRegistryPartial
-      delete window.currentForestPolygon
-      delete window.currentForestBounds
-      delete window.currentForestRegistryId
-      delete window.forestRegistryPartialMode
-    }
-  }, [handleAnalyze])
+    setIsChatProcessing(false)
+  }
 
   return (
     <div className="app">
-      {/* サイドバートグルボタン */}
-      <button
-        onClick={() => setSidebarVisible(!sidebarVisible)}
-        style={{
-          position: 'fixed',
-          top: '10px',
-          left: sidebarVisible ? '220px' : '10px',
-          zIndex: 1001,
-          background: '#2c5f2d',
-          color: 'white',
-          border: 'none',
-          borderRadius: '4px',
-          padding: '8px 12px',
-          cursor: 'pointer',
-          fontSize: '18px',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-          transition: 'left 0.3s ease'
-        }}
-        title={sidebarVisible ? 'サイドバーを隠す' : 'サイドバーを表示'}
-      >
-        {sidebarVisible ? '◀' : '▶'}
-      </button>
-
-      {sidebarVisible && (
-        <div className="sidebar">
-        <h1>Nitay</h1>
-        
-        {/* タブ形式のモード選択 */}
-        <div style={{ 
-          display: 'flex', 
-          background: 'white',
-          borderBottom: '1px solid #ddd'
-        }}>
-          <button
-            onClick={() => setMode('map')}
-            style={{
-              flex: 1,
-              padding: '12px 8px',
-              background: mode === 'map' ? '#2c5f2d' : 'white',
-              color: mode === 'map' ? 'white' : '#666',
-              border: 'none',
-              borderBottom: mode === 'map' ? 'none' : '1px solid #ddd',
-              cursor: 'pointer',
-              fontWeight: mode === 'map' ? 'bold' : 'normal',
-              fontSize: '12px',
-              transition: 'all 0.2s'
-            }}
-          >
-            地図から解析
-          </button>
-          <button
-            onClick={() => setMode('upload')}
-            style={{
-              flex: 1,
-              padding: '12px 8px',
-              background: mode === 'upload' ? '#2c5f2d' : 'white',
-              color: mode === 'upload' ? 'white' : '#666',
-              border: 'none',
-              borderBottom: mode === 'upload' ? 'none' : '1px solid #ddd',
-              cursor: 'pointer',
-              fontWeight: mode === 'upload' ? 'bold' : 'normal',
-              fontSize: '12px',
-              transition: 'all 0.2s'
-            }}
-          >
-            画像から解析
-          </button>
-          <button
-            onClick={() => setMode('chatbot')}
-            style={{
-              flex: 1,
-              padding: '12px 8px',
-              background: mode === 'chatbot' ? '#2c5f2d' : 'white',
-              color: mode === 'chatbot' ? 'white' : '#666',
-              border: 'none',
-              borderBottom: mode === 'chatbot' ? 'none' : '1px solid #ddd',
-              cursor: 'pointer',
-              fontWeight: mode === 'chatbot' ? 'bold' : 'normal',
-              fontSize: '11px',
-              transition: 'all 0.2s'
-            }}
-          >
-            チャットボット
-          </button>
-        </div>
-
-        <div className="sidebar-content">
-          {mode === 'map' && (
-            <>
-              <div className="section">
-                <h2>範囲を指定</h2>
-                
-                {/* 描画ボタン */}
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                  <button
-                    onClick={() => {
-                      setDrawType('rectangle')
-                      setDrawMode(true)
-                    }}
-                    disabled={drawMode}
-                    style={{
-                      flex: 1,
-                      background: drawMode && drawType === 'rectangle' ? '#2c5f2d' : 'white',
-                      color: drawMode && drawType === 'rectangle' ? 'white' : '#2c5f2d',
-                      padding: '10px',
-                      border: '2px solid #2c5f2d',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      cursor: drawMode ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <span style={{ fontSize: '14px' }}>▭</span>
-                    矩形
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDrawType('polygon')
-                      setDrawMode(true)
-                    }}
-                    disabled={drawMode}
-                    style={{
-                      flex: 1,
-                      background: drawMode && drawType === 'polygon' ? '#2c5f2d' : 'white',
-                      color: drawMode && drawType === 'polygon' ? 'white' : '#2c5f2d',
-                      padding: '10px',
-                      border: '2px solid #2c5f2d',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      cursor: drawMode ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <span style={{ fontSize: '14px' }}>⬡</span>
-                    ポリゴン
-                  </button>
-                </div>
-                
-                {drawMode && (
-                  <div style={{
-                    background: '#e8f5e9',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    marginBottom: '12px',
-                    fontSize: '11px',
-                    border: '1px solid #4CAF50'
-                  }}>
-                    <div style={{ fontWeight: 'bold', color: '#2c5f2d', marginBottom: '5px' }}>
-                      ✏️ {drawType === 'rectangle' ? '矩形描画中' : 'ポリゴン描画中'}
-                    </div>
-                    <div style={{ color: '#666', lineHeight: '1.5' }}>
-                      {drawType === 'rectangle' 
-                        ? 'ドラッグして矩形を描画してください'
-                        : 'クリックで頂点を追加、ダブルクリックで完了'}
-                    </div>
-                    <button
-                      onClick={() => setDrawMode(false)}
-                      style={{
-                        marginTop: '8px',
-                        width: '100%',
-                        background: 'white',
-                        color: '#2c5f2d',
-                        padding: '6px',
-                        border: '1px solid #2c5f2d',
-                        borderRadius: '3px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      キャンセル
-                    </button>
-                  </div>
-                )}
-                
-                <p className="instruction" style={{ fontSize: '11px', color: '#888', lineHeight: '1.5' }}>
-                  地図上で範囲を指定するか、下のレイヤーボタンから森林簿を表示して小班を選択できます。
-                </p>
-              </div>
-              
-              <div className="section">
-                <h2>レイヤー表示</h2>
-                
-                {/* 森林簿レイヤー */}
-                <div
-                  onClick={() => setShowForestRegistry(!showForestRegistry)}
-                  style={{
-                    width: '100%',
-                    background: 'white',
-                    padding: '12px 16px',
-                    border: '2px solid #ddd',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '8px',
-                    color: '#333'
-                  }}
-                >
-                  <span>森林簿</span>
-                  <div
-                    style={{
-                      width: '50px',
-                      height: '26px',
-                      background: showForestRegistry ? '#2c5f2d' : '#ccc',
-                      borderRadius: '13px',
-                      position: 'relative',
-                      transition: 'background 0.3s'
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        background: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: showForestRegistry ? '26px' : '2px',
-                        transition: 'left 0.3s',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                {/* 森林簿検索 */}
-                {showForestRegistry && (
-                  <div style={{
-                    background: '#f5f5f5',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    marginBottom: '8px'
-                  }}>
-                    {/* デバッグ情報（一時的） */}
-                    {Object.keys(municipalityNames).length === 0 && (
-                      <div style={{
-                        background: '#fff3cd',
-                        padding: '8px',
-                        marginBottom: '8px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        color: '#856404'
-                      }}>
-                        ⚠️ 市町村名データが読み込まれていません。バックエンドが起動しているか確認してください。
-                      </div>
-                    )}
-                    <div style={{ marginBottom: '8px' }}>
-                      <label style={{ fontSize: '10px', color: '#666', display: 'block', marginBottom: '4px' }}>
-                        市町村
-                      </label>
-                      <select
-                        value={selectedMunicipalityCode}
-                        onChange={(e) => setSelectedMunicipalityCode(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '8px',
-                          border: '1px solid #8B4513',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          backgroundColor: 'white',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <option value="">すべて</option>
-                        {municipalityOptions.map(code => (
-                          <option key={code} value={code}>
-                            {code} - {municipalityNames[code] || code}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div style={{ marginBottom: '8px' }}>
-                      <label style={{ fontSize: '10px', color: '#666', display: 'block', marginBottom: '4px' }}>
-                        林班-小班
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="例: 0053-0049, 0054-0001"
-                        value={forestSearchQuery}
-                        onChange={(e) => setForestSearchQuery(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && window.handleForestSearch) {
-                            window.handleForestSearch(forestSearchQuery, selectedMunicipalityCode)
-                          }
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '8px',
-                          border: '1px solid #8B4513',
-                          borderRadius: '4px',
-                          fontSize: '11px'
-                        }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => {
-                          if (window.handleForestSearch) {
-                            window.handleForestSearch(forestSearchQuery, selectedMunicipalityCode)
-                          }
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '8px',
-                          background: '#8B4513',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 'bold',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        🔍 検索
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (window.showSelectedForestInfo) {
-                          window.showSelectedForestInfo()
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        background: '#28a745',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        marginTop: '8px'
-                      }}
-                    >
-                      📋 選択情報を表示
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (window.analyzeSelectedForests) {
-                          window.analyzeSelectedForests()
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        background: '#007bff',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        marginTop: '8px'
-                      }}
-                    >
-                      🔬 選択小班を解析
-                    </button>
-                    <div style={{
-                      fontSize: '10px',
-                      color: '#666',
-                      marginTop: '6px',
-                      lineHeight: '1.4'
-                    }}>
-                      💡 複数指定はカンマ区切り<br/>
-                      クリックでトグル選択可能
-                    </div>
-                  </div>
-                )}
-                
-                {/* 行政区域レイヤー */}
-                <div
-                  onClick={() => setShowAdminBoundaries(!showAdminBoundaries)}
-                  style={{
-                    width: '100%',
-                    background: 'white',
-                    padding: '12px 16px',
-                    border: '2px solid #ddd',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '8px',
-                    color: '#333'
-                  }}
-                >
-                  <span>行政区域</span>
-                  <div
-                    style={{
-                      width: '50px',
-                      height: '26px',
-                      background: showAdminBoundaries ? '#2c5f2d' : '#ccc',
-                      borderRadius: '13px',
-                      position: 'relative',
-                      transition: 'background 0.3s'
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        background: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: showAdminBoundaries ? '26px' : '2px',
-                        transition: 'left 0.3s',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                {/* 河川レイヤー */}
-                <div
-                  onClick={() => setShowRivers(!showRivers)}
-                  style={{
-                    width: '100%',
-                    background: 'white',
-                    padding: '12px 16px',
-                    border: '2px solid #ddd',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '8px',
-                    color: '#333'
-                  }}
-                >
-                  <span>河川</span>
-                  <div
-                    style={{
-                      width: '50px',
-                      height: '26px',
-                      background: showRivers ? '#2c5f2d' : '#ccc',
-                      borderRadius: '13px',
-                      position: 'relative',
-                      transition: 'background 0.3s'
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        background: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: showRivers ? '26px' : '2px',
-                        transition: 'left 0.3s',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                {/* 陰影起伏図レイヤー */}
-                <div style={{ marginBottom: '8px' }}>
-                  <div
-                    onClick={() => setShowSlope(!showSlope)}
-                    style={{
-                      width: '100%',
-                      background: 'white',
-                      padding: '12px 16px',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      color: '#333'
-                    }}
-                  >
-                    <span>陰影起伏図</span>
-                    <div
-                      style={{
-                        width: '50px',
-                        height: '26px',
-                        background: showSlope ? '#2c5f2d' : '#ccc',
-                        borderRadius: '13px',
-                        position: 'relative',
-                        transition: 'background 0.3s'
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '22px',
-                          height: '22px',
-                          background: 'white',
-                          borderRadius: '50%',
-                          position: 'absolute',
-                          top: '2px',
-                          left: showSlope ? '26px' : '2px',
-                          transition: 'left 0.3s',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                        }}
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* 透明度スライダー */}
-                  {showSlope && (
-                    <div style={{
-                      background: '#f5f5f5',
-                      padding: '10px',
-                      borderRadius: '4px',
-                      marginTop: '4px'
-                    }}>
-                      <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '6px' }}>
-                        透明度: {Math.round((1 - slopeOpacity) * 100)}%
-                      </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={(1 - slopeOpacity) * 100}
-                        onChange={(e) => setSlopeOpacity(1 - e.target.value / 100)}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          width: '100%',
-                          cursor: 'pointer'
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                {/* 等高線レイヤー */}
-                <div style={{ marginBottom: '8px' }}>
-                  <div
-                    onClick={() => setShowContour(!showContour)}
-                    style={{
-                      width: '100%',
-                      background: 'white',
-                      padding: '12px 16px',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      color: '#333'
-                    }}
-                  >
-                    <span>等高線</span>
-                    <div
-                      style={{
-                        width: '50px',
-                        height: '26px',
-                        background: showContour ? '#2c5f2d' : '#ccc',
-                        borderRadius: '13px',
-                        position: 'relative',
-                        transition: 'background 0.3s'
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '22px',
-                          height: '22px',
-                          background: 'white',
-                          borderRadius: '50%',
-                          position: 'absolute',
-                          top: '2px',
-                          left: showContour ? '26px' : '2px',
-                          transition: 'left 0.3s',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                        }}
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* 透明度スライダー */}
-                  {showContour && (
-                    <div style={{
-                      background: '#f5f5f5',
-                      padding: '10px',
-                      borderRadius: '4px',
-                      marginTop: '4px'
-                    }}>
-                      <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '6px' }}>
-                        透明度: {Math.round((1 - contourOpacity) * 100)}%
-                      </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={(1 - contourOpacity) * 100}
-                        onChange={(e) => setContourOpacity(1 - e.target.value / 100)}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          width: '100%',
-                          cursor: 'pointer'
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-          {mode === 'chatbot' && (
-            <div className="section">
-              <h2>チャットボット解析</h2>
-            <div style={{
-              background: '#e3f2fd',
-              padding: '12px',
-              borderRadius: '4px',
-              marginBottom: '15px',
-              fontSize: '12px',
-              border: '1px solid #2196F3'
-            }}>
-              <strong style={{ color: '#0d47a1' }}>🤖 チャットボット解析について</strong>
-              <p style={{ marginTop: '8px', marginBottom: 0, color: '#0d47a1', lineHeight: '1.6' }}>
-                AIとやり取りしながら解析を実行できます。MVP版ではテスト用の文言で動作確認できます。
-              </p>
-            </div>
-            
-            <div style={{
-              background: '#fff3cd',
-              padding: '12px',
-              borderRadius: '4px',
-              marginBottom: '15px',
-              fontSize: '12px',
-              border: '1px solid #ffc107'
-            }}>
-              <strong style={{ color: '#856404' }}>📝 テスト用文言</strong>
-              <p style={{ marginTop: '8px', marginBottom: '8px', color: '#856404', lineHeight: '1.6' }}>
-                以下の文言をコピーして入力してください：
-              </p>
-              <div style={{
-                background: 'white',
-                padding: '10px',
-                borderRadius: '4px',
-                fontFamily: 'monospace',
-                fontSize: '13px',
-                color: '#333',
-                border: '1px solid #ddd',
-                cursor: 'pointer'
-              }}
-              onClick={() => {
-                navigator.clipboard.writeText('札幌市全体の材積を解析したい。')
-                alert('クリップボードにコピーしました！')
-              }}
-              title="クリックでコピー"
-              >
-                札幌市全体の材積を解析したい。
-              </div>
-            </div>
-            
-            {/* チャットメッセージ表示エリア（LINE風） */}
-            <div style={{
-              background: '#f7f7f7',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '20px 12px',
-              marginBottom: '12px',
-              maxHeight: '400px',
-              overflowY: 'auto',
-              minHeight: '200px'
-            }}>
-              {chatMessages.length === 0 ? (
-                <p style={{ color: '#999', fontSize: '13px', textAlign: 'center', margin: '80px 0' }}>
-                  メッセージを入力してください
-                </p>
-              ) : (
-                chatMessages.map((msg, idx) => (
-                  <div key={idx} style={{
-                    display: 'flex',
-                    flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                    alignItems: 'flex-end',
-                    marginBottom: '20px',
-                    gap: '10px'
-                  }}>
-                    {/* アイコン */}
-                    <div style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '50%',
-                      background: msg.role === 'user' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg, #06C755 0%, #00B900 100%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '18px',
-                      flexShrink: 0,
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
-                    }}>
-                      {msg.role === 'user' ? '👤' : '🤖'}
-                    </div>
-                    
-                    {/* メッセージバブル */}
-                    <div style={{
-                      maxWidth: '75%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start'
-                    }}>
-                      <div style={{
-                        fontSize: '10px',
-                        fontWeight: '600',
-                        marginBottom: '6px',
-                        color: '#888',
-                        paddingLeft: msg.role === 'user' ? '0' : '8px',
-                        paddingRight: msg.role === 'user' ? '8px' : '0'
-                      }}>
-                        {msg.role === 'user' ? 'あなた' : 'AI'}
-                      </div>
-                      <div style={{
-                        padding: '14px 18px',
-                        borderRadius: msg.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                        background: msg.role === 'user' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg, #06C755 0%, #00B900 100%)',
-                        color: 'white',
-                        fontSize: '14px',
-                        lineHeight: '1.7',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                        position: 'relative'
-                      }}>
-                        {msg.content}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            {/* チャット入力欄 */}
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !analyzing) {
-                    handleChatSubmit()
-                  }
-                }}
-                placeholder="メッセージを入力..."
-                disabled={analyzing}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px',
-                  fontSize: '13px'
-                }}
-              />
-              <button
-                onClick={handleChatSubmit}
-                disabled={analyzing || !chatInput.trim()}
-                style={{
-                  padding: '10px 20px',
-                  background: analyzing || !chatInput.trim() ? '#ccc' : '#2c5f2d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: analyzing || !chatInput.trim() ? 'not-allowed' : 'pointer',
-                  fontSize: '13px',
-                  fontWeight: 'bold'
-                }}
-              >
-                {analyzing ? '⏳' : '送信'}
-              </button>
-              </div>
-            </div>
-          )}
-
-          {mode === 'upload' && (
-            <>
-              <div className="section">
-                <h2>1. 画像アップロード</h2>
-              
-              {/* 画像品質の注意事項 */}
-              <div style={{
-                background: '#fff3cd',
-                padding: '12px',
-                borderRadius: '4px',
-                marginBottom: '12px',
-                fontSize: '12px',
-                border: '1px solid #ffc107'
-              }}>
-                <strong style={{ color: '#856404' }}>📋 推奨画像品質</strong>
-                <ul style={{ marginTop: '8px', marginLeft: '18px', color: '#856404' }}>
-                  <li><strong>解像度:</strong> 30cm/ピクセル以下（最低50cm）</li>
-                  <li><strong>雲量:</strong> 5%未満（最低20%）</li>
-                  <li><strong>影:</strong> 20-30%未満（最低40%）</li>
-                  <li><strong>季節:</strong> 落葉樹は葉有り期、積雪期NG</li>
-                  <li><strong>撮影角度:</strong> 25-30°以下（最低35°）</li>
-                </ul>
-                <p style={{ marginTop: '8px', fontSize: '11px', color: '#856404' }}>
-                  ※ 品質が低いと検出精度が低下します
-                </p>
-              </div>
-              
-              <div style={{
-                background: '#e7f3ff',
-                padding: '10px',
-                borderRadius: '4px',
-                marginBottom: '10px',
-                fontSize: '12px',
-                border: '1px solid #2196F3'
-              }}>
-                <strong style={{ color: '#0d47a1' }}>💡 ファイル形式について</strong>
-                <p style={{ marginTop: '5px', marginBottom: '5px', color: '#0d47a1' }}>
-                  <strong>推奨: GeoTIFF形式（.tif, .tiff）</strong><br />
-                  緯度経度情報が含まれており、地図上の正確な位置に表示できます。
-                </p>
-                <p style={{ marginTop: '5px', marginBottom: 0, color: '#0d47a1', fontSize: '11px' }}>
-                  ※ JPG/PNG形式も可能ですが、座標情報がないため地図上に表示できません。
-                </p>
-              </div>
-
-              {/* プリセット画像選択（MVP用） */}
-              {presetImages.length > 0 && (
-                <div style={{
-                  background: '#e8f5e9',
-                  padding: '14px',
-                  borderRadius: '6px',
-                  marginBottom: '16px',
-                  border: '2px solid #4CAF50',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '20px', marginRight: '8px' }}>🎯</span>
-                    <strong style={{ color: '#2c5f2d', fontSize: '14px' }}>サンプル画像を使用（MVP）</strong>
-                  </div>
-                  <div style={{ marginTop: '10px' }}>
-                    {presetImages.map((img) => (
-                      <button
-                        key={img.id}
-                        onClick={() => handlePresetImageSelect(img.id)}
-                        disabled={loadingPresets}
-                        style={{
-                          width: '100%',
-                          padding: '12px',
-                          marginBottom: '8px',
-                          background: loadingPresets ? '#f5f5f5' : '#4CAF50',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '5px',
-                          cursor: loadingPresets ? 'not-allowed' : 'pointer',
-                          fontSize: '13px',
-                          fontWeight: 'bold',
-                          transition: 'all 0.2s',
-                          boxShadow: loadingPresets ? 'none' : '0 2px 4px rgba(0,0,0,0.2)'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!loadingPresets) {
-                            e.target.style.background = '#45a049'
-                            e.target.style.transform = 'translateY(-1px)'
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!loadingPresets) {
-                            e.target.style.background = '#4CAF50'
-                            e.target.style.transform = 'translateY(0)'
-                          }
-                        }}
-                      >
-                        {loadingPresets ? '⏳ 読み込み中...' : `📷 ${img.filename}`}
-                      </button>
-                    ))}
-                  </div>
-                  <p style={{ marginTop: '10px', marginBottom: 0, fontSize: '11px', color: '#2c5f2d', lineHeight: '1.4' }}>
-                    💡 事前に配置されたサンプル画像を使用できます
-                  </p>
-                </div>
-              )}
-              
-              <label
-                htmlFor="file-upload"
-                onClick={handleFileUploadClick}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  padding: '15px',
-                  border: '2px dashed #ccc',
-                  borderRadius: '4px',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  background: '#f5f5f5',
-                  textAlign: 'center',
-                  color: '#999',
-                  fontWeight: 'bold',
-                  transition: 'all 0.3s',
-                  opacity: 0.6
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = '#e8e8e8'
-                  e.target.style.borderColor = '#999'
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = '#f5f5f5'
-                  e.target.style.borderColor = '#ccc'
-                }}
-              >
-                📁 GeoTIFFファイルを選択（MVP版では無効）
-              </label>
-              <input
-                id="file-upload"
-                type="file"
-                accept=".tif,.tiff,.jpg,.jpeg,.png"
-                onChange={handleFileUpload}
-                disabled={true}
-                style={{ display: 'none' }}
-              />
-              {fileId && (
-                <>
-                  {!imageLoaded ? (
-                    <p className="status">📤 画像を読み込み中...</p>
-                  ) : (
-                    <p className="success">✓ アップロード完了</p>
-                  )}
-                  
-                  {/* 画像品質の警告 */}
-                  {imageQualityWarnings.length > 0 && imageLoaded && (
-                    <div style={{
-                      background: '#fff3cd',
-                      padding: '10px',
-                      borderRadius: '4px',
-                      marginTop: '10px',
-                      fontSize: '12px',
-                      border: '1px solid #ffc107'
-                    }}>
-                      <strong style={{ color: '#856404' }}>⚠️ 画像品質の注意</strong>
-                      <ul style={{ marginTop: '5px', marginLeft: '18px', marginBottom: 0 }}>
-                        {imageQualityWarnings.map((warning, i) => (
-                          <li key={i} style={{ color: '#856404', marginTop: '3px' }}>
-                            {warning}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  
-                  {imageBounds && imageLoaded && (
-                    <>
-                      <p className="success" style={{ fontSize: '13px', marginTop: '5px' }}>
-                        画像が地図上に表示されました
-                      </p>
-                      <button
-                        onClick={() => setZoomToImage(prev => !prev)}
-                        style={{
-                          marginTop: '10px',
-                          padding: '8px 16px',
-                          background: '#2c5f2d',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          width: '100%'
-                        }}
-                      >
-                        📍 画像位置にズーム
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* 2. 範囲を指定（地図上で範囲を指定するか、森林簿から小班を選択） */}
-            <div className="section">
-              <h2>2. 範囲を指定</h2>
-              
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                <button
-                  onClick={() => {
-                    if (!drawMode) {
-                      setDrawType('rectangle')
-                      setDrawMode(true)
-                    }
-                  }}
-                  disabled={drawMode}
-                  style={{
-                    flex: 1,
-                    background: drawMode && drawType === 'rectangle' ? '#2c5f2d' : 'white',
-                    color: drawMode && drawType === 'rectangle' ? 'white' : '#2c5f2d',
-                    padding: '10px',
-                    border: '2px solid #2c5f2d',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    cursor: drawMode ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <span style={{ fontSize: '14px' }}>▭</span>
-                  矩形
-                </button>
-                <button
-                  onClick={() => {
-                    if (!drawMode) {
-                      setDrawType('polygon')
-                      setDrawMode(true)
-                    }
-                  }}
-                  disabled={drawMode}
-                  style={{
-                    flex: 1,
-                    background: drawMode && drawType === 'polygon' ? '#2c5f2d' : 'white',
-                    color: drawMode && drawType === 'polygon' ? 'white' : '#2c5f2d',
-                    padding: '10px',
-                    border: '2px solid #2c5f2d',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    cursor: drawMode ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <span style={{ fontSize: '14px' }}>⬡</span>
-                  ポリゴン
-                </button>
-              </div>
-              
-              {drawMode && (
-                <div style={{
-                  background: '#e8f5e9',
-                  padding: '10px',
-                  borderRadius: '4px',
-                  marginBottom: '12px',
-                  fontSize: '11px',
-                  border: '1px solid #4CAF50'
-                }}>
-                  <div style={{ fontWeight: 'bold', color: '#2c5f2d', marginBottom: '5px' }}>
-                    ✏️ {drawType === 'rectangle' ? '矩形描画中' : 'ポリゴン描画中'}
-                  </div>
-                  <div style={{ color: '#666', lineHeight: '1.5' }}>
-                    {drawType === 'rectangle' 
-                      ? 'ドラッグして矩形を描画してください'
-                      : 'クリックで頂点を追加、ダブルクリックで完了'}
-                  </div>
-                  <button
-                    onClick={() => setDrawMode(false)}
-                    style={{
-                      marginTop: '8px',
-                      width: '100%',
-                      background: 'white',
-                      color: '#2c5f2d',
-                      padding: '6px',
-                      border: '1px solid #2c5f2d',
-                      borderRadius: '3px',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    キャンセル
-                  </button>
-                </div>
-              )}
-              
-              <p className="instruction" style={{ fontSize: '11px', color: '#888', lineHeight: '1.5' }}>
-                地図上で範囲を指定するか、下のレイヤーボタンから森林簿を表示して小班を選択できます。
-              </p>
-            </div>
-            
-            {/* 3. レイヤー表示 */}
-            <div className="section">
-              <h2>3. レイヤー表示</h2>
-              
-              {/* 森林簿レイヤー */}
-              <div
-                onClick={() => setShowForestRegistry(!showForestRegistry)}
-                style={{
-                  width: '100%',
-                  background: 'white',
-                  padding: '12px 16px',
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px',
-                  color: '#333'
-                }}
-              >
-                <span>森林簿</span>
-                <div
-                  style={{
-                    width: '50px',
-                    height: '26px',
-                    background: showForestRegistry ? '#2c5f2d' : '#ccc',
-                    borderRadius: '13px',
-                    position: 'relative',
-                    transition: 'background 0.3s'
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      background: 'white',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '2px',
-                      left: showForestRegistry ? '26px' : '2px',
-                      transition: 'left 0.3s',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}
-                  />
-                </div>
-              </div>
-              
-              {/* 森林簿検索 */}
-              {showForestRegistry && (
-                <div style={{
-                  background: '#f5f5f5',
-                  padding: '10px',
-                  borderRadius: '4px',
-                  marginBottom: '8px'
-                }}>
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: '#666', display: 'block', marginBottom: '4px' }}>
-                      市町村
-                    </label>
-                    <select
-                      value={selectedMunicipalityCode}
-                      onChange={(e) => setSelectedMunicipalityCode(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '1px solid #8B4513',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        backgroundColor: 'white',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <option value="">すべて</option>
-                      {municipalityOptions.map(code => (
-                        <option key={code} value={code}>
-                          {code} - {municipalityNames[code] || code}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '10px', color: '#666', display: 'block', marginBottom: '4px' }}>
-                      林班-小班
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="例: 0053-0049, 0054-0001"
-                    value={forestSearchQuery}
-                    onChange={(e) => setForestSearchQuery(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && window.handleForestSearch) {
-                        window.handleForestSearch(forestSearchQuery, selectedMunicipalityCode)
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      border: '1px solid #8B4513',
-                      borderRadius: '4px',
-                      fontSize: '11px'
-                    }}
-                  />
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      onClick={() => {
-                        if (window.handleForestSearch) {
-                          window.handleForestSearch(forestSearchQuery, selectedMunicipalityCode)
-                        }
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '8px',
-                        background: '#8B4513',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      🔍 検索
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (window.showSelectedForestInfo) {
-                        window.showSelectedForestInfo()
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      background: '#28a745',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      marginTop: '8px'
-                    }}
-                  >
-                    📋 選択情報を表示
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.analyzeSelectedForests) {
-                        window.analyzeSelectedForests()
-                      }
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      background: '#007bff',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      marginTop: '8px'
-                    }}
-                  >
-                    🔬 選択小班を解析
-                  </button>
-                  <div style={{
-                    fontSize: '10px',
-                    color: '#666',
-                    marginTop: '6px',
-                    lineHeight: '1.4'
-                  }}>
-                    💡 複数指定はカンマ区切り<br/>
-                    クリックでトグル選択可能
-                  </div>
-                </div>
-              )}
-              
-              {/* 行政区域レイヤー */}
-              <div
-                onClick={() => setShowAdminBoundaries(!showAdminBoundaries)}
-                style={{
-                  width: '100%',
-                  background: 'white',
-                  padding: '12px 16px',
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px',
-                  color: '#333'
-                }}
-              >
-                <span>行政区域</span>
-                <div
-                  style={{
-                    width: '50px',
-                    height: '26px',
-                    background: showAdminBoundaries ? '#2c5f2d' : '#ccc',
-                    borderRadius: '13px',
-                    position: 'relative',
-                    transition: 'background 0.3s'
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      background: 'white',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '2px',
-                      left: showAdminBoundaries ? '26px' : '2px',
-                      transition: 'left 0.3s',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}
-                  />
-                </div>
-              </div>
-              
-              {/* 河川レイヤー */}
-              <div
-                onClick={() => setShowRivers(!showRivers)}
-                style={{
-                  width: '100%',
-                  background: 'white',
-                  padding: '12px 16px',
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px',
-                  color: '#333'
-                }}
-              >
-                <span>河川</span>
-                <div
-                  style={{
-                    width: '50px',
-                    height: '26px',
-                    background: showRivers ? '#2c5f2d' : '#ccc',
-                    borderRadius: '13px',
-                    position: 'relative',
-                    transition: 'background 0.3s'
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '22px',
-                      height: '22px',
-                      background: 'white',
-                      borderRadius: '50%',
-                      position: 'absolute',
-                      top: '2px',
-                      left: showRivers ? '26px' : '2px',
-                      transition: 'left 0.3s',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}
-                  />
-                </div>
-              </div>
-              
-              {/* 陰影起伏図レイヤー */}
-              <div style={{ marginBottom: '8px' }}>
-                <div
-                  onClick={() => setShowSlope(!showSlope)}
-                  style={{
-                    width: '100%',
-                    background: 'white',
-                    padding: '12px 16px',
-                    border: '2px solid #ddd',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    color: '#333'
-                  }}
-                >
-                  <span>陰影起伏図</span>
-                  <div
-                    style={{
-                      width: '50px',
-                      height: '26px',
-                      background: showSlope ? '#2c5f2d' : '#ccc',
-                      borderRadius: '13px',
-                      position: 'relative',
-                      transition: 'background 0.3s'
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        background: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: showSlope ? '26px' : '2px',
-                        transition: 'left 0.3s',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                {/* 透明度スライダー */}
-                {showSlope && (
-                  <div style={{
-                    background: '#f5f5f5',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    marginTop: '4px'
-                  }}>
-                    <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '6px' }}>
-                      透明度: {Math.round((1 - slopeOpacity) * 100)}%
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={(1 - slopeOpacity) * 100}
-                      onChange={(e) => setSlopeOpacity(1 - e.target.value / 100)}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        width: '100%',
-                        cursor: 'pointer'
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-              
-              {/* 等高線レイヤー */}
-              <div style={{ marginBottom: '8px' }}>
-                <div
-                  onClick={() => setShowContour(!showContour)}
-                  style={{
-                    width: '100%',
-                    background: 'white',
-                    padding: '12px 16px',
-                    border: '2px solid #ddd',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    color: '#333'
-                  }}
-                >
-                  <span>等高線</span>
-                  <div
-                    style={{
-                      width: '50px',
-                      height: '26px',
-                      background: showContour ? '#2c5f2d' : '#ccc',
-                      borderRadius: '13px',
-                      position: 'relative',
-                      transition: 'background 0.3s'
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '22px',
-                        height: '22px',
-                        background: 'white',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: showContour ? '26px' : '2px',
-                        transition: 'left 0.3s',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                {/* 透明度スライダー */}
-                {showContour && (
-                  <div style={{
-                    background: '#f5f5f5',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    marginTop: '4px'
-                  }}>
-                    <label style={{ fontSize: '11px', color: '#666', display: 'block', marginBottom: '6px' }}>
-                      透明度: {Math.round((1 - contourOpacity) * 100)}%
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={(1 - contourOpacity) * 100}
-                      onChange={(e) => setContourOpacity(1 - e.target.value / 100)}
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        width: '100%',
-                        cursor: 'pointer'
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-              </div>
-            </>
-          )}
-
-          {analyzing && (
-            <div className="section">
-              <p className="status" style={{ textAlign: 'center', fontSize: '14px', color: '#2c5f2d' }}>
-                ⏳ 解析中...
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-      )}
-
-      <div className="main-content">
-      <div className="map-container">
-        <Map 
-          onAnalyze={handleAnalyze} 
-          disabled={analyzing || (mode === 'upload' && !fileId)}
-          imageBounds={mode === 'upload' ? imageBounds : null}
-          fileId={fileId}
-          zoomToImage={zoomToImage}
-          treePoints={result?.tree_points || []}
-          polygonCoords={result?.polygon_coords || null}
-          sapporoBounds={result?.sapporo_bounds || null}
-          mode={mode}
-          onClearResults={handleClearResults}
-          onImageLoaded={handleImageLoaded}
-          isMultiPolygon={result?.is_multi_polygon || false}
-          drawMode={drawMode}
-          drawType={drawType}
+      <Header 
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onSearchSubmit={handleSearch}
+        selectedMunicipality={selectedMunicipality}
+        onMunicipalityChange={setSelectedMunicipality}
+        municipalityNames={municipalityNames}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+      
+      <div className="app-body">
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
           showAdminBoundaries={showAdminBoundaries}
-          showRivers={showRivers}
           showForestRegistry={showForestRegistry}
+          showRivers={showRivers}
           showSlope={showSlope}
           showContour={showContour}
           slopeOpacity={slopeOpacity}
           contourOpacity={contourOpacity}
-          forestSearchQuery={forestSearchQuery}
-          onDrawModeChange={setDrawMode}
-          onForestSearchQueryChange={setForestSearchQuery}
-          onHasShapeChange={setHasShape}
-          municipalityNames={municipalityNames}
-          sidebarVisible={sidebarVisible}
+          onToggleLayer={handleToggleLayer}
+          onSlopeOpacityChange={setSlopeOpacity}
+          onContourOpacityChange={setContourOpacity}
+          chatMessages={chatMessages}
+          chatInput={chatInput}
+          isChatProcessing={isChatProcessing}
+          onChatInputChange={setChatInput}
+          onChatSubmit={handleChatSubmit}
+          presetImages={presetImages}
+          selectedImageId={selectedImageId}
+          isLoadingImage={isLoadingImage}
+          onPresetImageSelect={handlePresetImageSelect}
+          drawMode={drawMode}
+          drawType={drawType}
+          onDrawModeChange={handleDrawModeChange}
         />
-      </div>
-
-      {/* 下部パネル：解析結果とエラー表示 */}
-      {(result || error) && (
-        <div 
-          className="bottom-panel"
-          style={{
-            height: `${bottomPanelHeight}px`,
-            maxHeight: 'none'
-          }}
-        >
-          {/* リサイズハンドル */}
-          <div
-            onMouseDown={() => setIsResizing(true)}
-            style={{
-              height: '8px',
-              background: '#ddd',
-              cursor: 'ns-resize',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderBottom: '1px solid #ccc',
-              position: 'relative'
-            }}
-          >
-            <div style={{
-              width: '40px',
-              height: '4px',
-              background: '#999',
-              borderRadius: '2px'
-            }}></div>
+        
+        <main className="main-content">
+          <div className="map-section">
+            <Map
+              showAdminBoundaries={showAdminBoundaries}
+              showForestRegistry={showForestRegistry}
+              showRivers={showRivers}
+              showSlope={showSlope}
+              showContour={showContour}
+              slopeOpacity={slopeOpacity}
+              contourOpacity={contourOpacity}
+              municipalityNames={municipalityNames}
+              drawMode={drawMode}
+              drawType={drawType}
+              onDrawModeChange={handleDrawModeChange}
+              onFeatureClick={handleFeatureClick}
+              onForestSelect={handleFeatureClick}
+              onAnalyze={handleMapAnalyze}
+              onHasShapeChange={(hasShape) => console.log('[App.jsx] 図形描画状態:', hasShape)}
+              treePoints={treePoints}
+              polygonCoords={analysisResult?.polygon_coords}
+              sapporoBounds={analysisResult?.sapporo_bounds}
+              imageBounds={imageBounds}
+              fileId={selectedImageId}
+              zoomToImage={0}
+            />
           </div>
           
-          <div style={{ overflowY: 'auto', height: 'calc(100% - 8px)' }}>
-          {result && (
-            <div style={{ padding: '12px 20px' }}>
-              <h2 style={{ 
-                fontSize: '14px', 
-                marginBottom: '10px', 
-                color: '#333',
-                borderBottom: '2px solid #2c5f2d',
-                paddingBottom: '6px'
-              }}>解析結果</h2>
-              
-              <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
-                <div className="result-item">
-                  <span className="label">検出本数:</span>
-                  <span className="value">{result.tree_count.toLocaleString()}本</span>
-                </div>
-                
-                {result.tree_points && result.tree_points.length > 0 && (
-                  <>
-                    <div className="result-item">
-                      <span className="label">
-                        <span style={{ 
-                          display: 'inline-block', 
-                          width: '12px', 
-                          height: '12px', 
-                          background: '#2e7d32', 
-                          marginRight: '5px',
-                          borderRadius: '2px'
-                        }}></span>
-                        針葉樹:
-                      </span>
-                      <span className="value">
-                        {result.tree_points.filter(p => p.tree_type === 'coniferous').length.toLocaleString()}本
-                      </span>
-                    </div>
-                    <div className="result-item">
-                      <span className="label">
-                        <span style={{ 
-                          display: 'inline-block', 
-                          width: '12px', 
-                          height: '12px', 
-                          background: '#8d6e63', 
-                          marginRight: '5px',
-                          borderRadius: '2px'
-                        }}></span>
-                        広葉樹:
-                      </span>
-                      <span className="value">
-                        {result.tree_points.filter(p => p.tree_type === 'broadleaf').length.toLocaleString()}本
-                      </span>
-                    </div>
-                  </>
-                )}
-                
-                <div className="result-item">
-                  <span className="label">材積:</span>
-                  <span className="value">{result.volume_m3.toLocaleString()} m³</span>
-                </div>
-              </div>
-              
-              {result.warnings && result.warnings.length > 0 && (
-                <div style={{
-                  marginTop: '15px',
-                  padding: '10px',
-                  background: '#f5f5f5',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  color: '#666'
-                }}>
-                  {result.warnings.map((w, i) => (
-                    <div key={i} style={{ marginBottom: '5px' }}>{w}</div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {error && (
-            <div style={{
-              padding: '12px 20px',
-              background: '#f8d7da',
-              borderTop: '2px solid #dc3545'
-            }}>
-              <h3 style={{ color: '#721c24', marginBottom: '6px', fontSize: '13px' }}>エラー</h3>
-              <p style={{ color: '#721c24', fontSize: '12px', margin: 0 }}>
-                {typeof error === 'string' ? error : JSON.stringify(error)}
-              </p>
-            </div>
-          )}
+          <div className="table-section" style={{ height: `${tableHeight}px` }}>
+            <AttributeTable 
+              data={tableData}
+              isResizing={isResizing}
+              onResizeStart={handleResizeStart}
+              onRowSelect={handleRowSelect}
+              onRowDetail={handleRowDetail}
+              onAnalyzeSelected={handleAnalyzeSelected}
+              selectedRowId={selectedRowId}
+            />
           </div>
-        </div>
-      )}
+        </main>
+
+        <RightPanel
+          isOpen={rightPanelOpen}
+          onClose={() => setRightPanelOpen(false)}
+          selectedFeature={selectedFeature}
+          analysisResult={analysisResult}
+          analysisStatus={analysisStatus}
+          onRetryAnalysis={handleRetryAnalysis}
+          tableHeight={tableHeight}
+        />
       </div>
     </div>
   )

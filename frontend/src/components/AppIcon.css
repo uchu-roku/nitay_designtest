@@ -1,0 +1,31 @@
+@import '../styles/tokens.css';
+
+.app-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+/* サイズは tokens から取得（16/20/24px に固定） */
+.app-icon--sm {
+  width: var(--icon-size-sm);   /* 16px */
+  height: var(--icon-size-sm);
+}
+
+.app-icon--md {
+  width: var(--icon-size-base);  /* 20px */
+  height: var(--icon-size-base);
+}
+
+.app-icon--lg {
+  width: var(--icon-size-lg);    /* 24px */
+  height: var(--icon-size-lg);
+}
+
+/* 後方互換性のため base を md のエイリアスとして残す */
+.app-icon--base {
+  width: var(--icon-size-base);
+  height: var(--icon-size-base);
+}

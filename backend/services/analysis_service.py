@@ -45,8 +45,7 @@ class AnalysisService:
         return inside
     
     def _generate_tree_points(self, tree_count: int, bbox: tuple, polygon_coords: list = None) -> list:
-        """樹木位置を生成する共通メソッド"""
-        display_count = min(tree_count, 100)
+        """樹木位置を生成する共通メソッド（グリッドベース）"""
         tree_points = []
         
         if bbox:
@@ -61,34 +60,47 @@ class AnalysisService:
                 else:
                     polygon = [(coord['lon'], coord['lat']) for coord in polygon_coords]
             
-            attempts = 0
-            max_attempts = display_count * 10  # 最大試行回数
+            # グリッドサイズを計算（5m x 5m）
+            mesh_size_m = 5
+            avg_lat = (min_lat + max_lat) / 2
+            lat_step = mesh_size_m / 111000  # 緯度1度 ≈ 111km
+            lon_step = mesh_size_m / (111000 * math.cos(math.radians(avg_lat)))
             
-            while len(tree_points) < display_count and attempts < max_attempts:
-                attempts += 1
-                
-                # ランダムな位置を生成
-                lat = random.uniform(min_lat, max_lat)
-                lon = random.uniform(min_lon, max_lon)
-                
-                # ポリゴンが指定されている場合は範囲内チェック
-                if polygon and not self._point_in_polygon((lon, lat), polygon):
-                    continue
-                
-                # ランダムに針葉樹/広葉樹を割り当て
-                tree_type = 'coniferous' if random.random() < 0.6 else 'broadleaf'
-                
-                # ランダムなDBHと材積
-                dbh = random.uniform(15, 45)
-                volume = random.uniform(0.2, 1.2)
-                
-                tree_points.append({
-                    'lat': lat,
-                    'lon': lon,
-                    'tree_type': tree_type,
-                    'dbh': round(dbh, 1),
-                    'volume': round(volume, 3)
-                })
+            # グリッドの開始位置を計算（境界に合わせる）
+            grid_min_lat = min_lat
+            grid_min_lon = min_lon
+            
+            # グリッドを生成
+            current_lat = grid_min_lat
+            while current_lat < max_lat:
+                current_lon = grid_min_lon
+                while current_lon < max_lon:
+                    # グリッドの中心点
+                    center_lat = current_lat + lat_step / 2
+                    center_lon = current_lon + lon_step / 2
+                    
+                    # ポリゴンが指定されている場合は範囲内チェック
+                    if polygon and not self._point_in_polygon((center_lon, center_lat), polygon):
+                        current_lon += lon_step
+                        continue
+                    
+                    # ランダムに針葉樹/広葉樹を割り当て
+                    tree_type = 'coniferous' if random.random() < 0.6 else 'broadleaf'
+                    
+                    # ランダムなDBHと材積
+                    dbh = random.uniform(15, 45)
+                    volume = random.uniform(0.2, 1.2)
+                    
+                    tree_points.append({
+                        'lat': center_lat,
+                        'lon': center_lon,
+                        'tree_type': tree_type,
+                        'dbh': round(dbh, 1),
+                        'volume': round(volume, 3)
+                    })
+                    
+                    current_lon += lon_step
+                current_lat += lat_step
         
         return tree_points
     

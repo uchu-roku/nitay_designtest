@@ -129,60 +129,17 @@ async def get_river_boundaries():
 
 @app.get("/forest-registry/boundaries")
 async def get_forest_registry():
-    """小班ポリゴンデータを取得（分割ファイルから結合）"""
-    from fastapi.responses import JSONResponse
+    """小班ポリゴンデータを取得"""
+    from fastapi.responses import FileResponse
     from pathlib import Path
-    import json
     
-    base_dir = Path(__file__).parent.parent  # プロジェクトルート
-    split_dir = base_dir / "frontend" / "public" / "data" / "administrative" / "kitamirinsyou" / "split"
+    base_dir = Path(__file__).parent  # backendディレクトリ
     
-    # 分割ファイルが存在する場合は結合して返す
-    if split_dir.exists():
-        index_path = split_dir / "index.json"
-        if index_path.exists():
-            print("分割ファイルから小班GeoJSONを結合します")
-            
-            try:
-                # インデックスを読み込み
-                with open(index_path, 'r', encoding='utf-8') as f:
-                    index = json.load(f)
-                
-                # 全フィーチャーを結合
-                all_features = []
-                for part_info in index['parts']:
-                    part_file = split_dir / part_info['file']
-                    if part_file.exists():
-                        print(f"読み込み中: {part_info['file']} ({part_info['features']} features)")
-                        with open(part_file, 'r', encoding='utf-8') as f:
-                            data = json.load(f)
-                            all_features.extend(data['features'])
-                
-                # 結合したGeoJSONを返す
-                merged = {
-                    'type': 'FeatureCollection',
-                    'features': all_features
-                }
-                
-                print(f"結合完了: {len(all_features)} features")
-                
-                return JSONResponse(
-                    content=merged,
-                    headers={
-                        "Access-Control-Allow-Origin": "*",
-                        "Cache-Control": "public, max-age=86400"
-                    }
-                )
-            except Exception as e:
-                print(f"分割ファイルの結合エラー: {e}")
-                # エラー時はフォールバック
-    
-    # フォールバック: 元のファイルを返す（存在する場合）
-    geojson_path = base_dir / "frontend" / "public" / "data" / "administrative" / "kitamirinsyou" / "forest_registry.geojson"
+    # 簡易版GeoJSONを返す
+    geojson_path = base_dir / "data" / "administrative" / "rinsyousigen" / "shouhan_simple.geojson"
     
     if geojson_path.exists():
-        print(f"元の小班GeoJSONを配信: {geojson_path}")
-        from fastapi.responses import FileResponse
+        print(f"小班GeoJSONを配信: {geojson_path}")
         return FileResponse(
             str(geojson_path),
             media_type="application/json",
@@ -203,6 +160,7 @@ async def get_layers(keycode14: str):
     """
     from pathlib import Path
     import json
+    from fastapi.responses import JSONResponse
     
     base_dir = Path(__file__).parent
     
@@ -215,7 +173,33 @@ async def get_layers(keycode14: str):
         
         if part_file.exists():
             print(f"分割ファイルから層データを読み込み: {part_file}")
-            with open(part_file, 'r', encoding='utf-8') as f:
+            try:
+                with open(part_file, 'r', encoding='utf-8') as f:
+                    layers_index = json.load(f)
+                
+                # KEYCODEで検索
+                if keycode14 in layers_index:
+                    layers = layers_index[keycode14]
+                    print(f"層データ取得: KEYCODE={keycode14}, 層数={len(layers)}")
+                    
+                    return JSONResponse(
+                        content={
+                            "keycode": keycode14,
+                            "layer_count": len(layers),
+                            "layers": layers
+                        },
+                        headers={"Access-Control-Allow-Origin": "*"}
+                    )
+            except Exception as e:
+                print(f"分割ファイル読み込みエラー: {e}")
+    
+    # フォールバック: 元のファイルを使用
+    layers_json_path = base_dir / "data" / "administrative" / "rinsyousigen" / "layers_index.json"
+    
+    if layers_json_path.exists():
+        print(f"元のファイルから層データを読み込み: {layers_json_path}")
+        try:
+            with open(layers_json_path, 'r', encoding='utf-8') as f:
                 layers_index = json.load(f)
             
             # KEYCODEで検索
@@ -223,32 +207,22 @@ async def get_layers(keycode14: str):
                 layers = layers_index[keycode14]
                 print(f"層データ取得: KEYCODE={keycode14}, 層数={len(layers)}")
                 
-                return {
-                    "keycode": keycode14,
-                    "layer_count": len(layers),
-                    "layers": layers
-                }
+                return JSONResponse(
+                    content={
+                        "keycode": keycode14,
+                        "layer_count": len(layers),
+                        "layers": layers
+                    },
+                    headers={"Access-Control-Allow-Origin": "*"}
+                )
+        except Exception as e:
+            print(f"元のファイル読み込みエラー: {e}")
     
-    # フォールバック: 元のファイルを使用
-    layers_json_path = base_dir / "data" / "administrative" / "rinsyousigen" / "layers_index.json"
-    
-    if layers_json_path.exists():
-        print(f"元のファイルから層データを読み込み: {layers_json_path}")
-        with open(layers_json_path, 'r', encoding='utf-8') as f:
-            layers_index = json.load(f)
-        
-        # KEYCODEで検索
-        if keycode14 in layers_index:
-            layers = layers_index[keycode14]
-            print(f"層データ取得: KEYCODE={keycode14}, 層数={len(layers)}")
-            
-            return {
-                "keycode": keycode14,
-                "layer_count": len(layers),
-                "layers": layers
-            }
-    
-    raise HTTPException(status_code=404, detail=f"KEYCODE {keycode14} に対応する層データが見つかりません")
+    raise HTTPException(
+        status_code=404, 
+        detail=f"KEYCODE {keycode14} に対応する層データが見つかりません",
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
 
 
 @app.get("/api/municipality-codes")
@@ -258,34 +232,45 @@ async def get_municipality_codes():
     """
     from pathlib import Path
     import json
+    from fastapi.responses import JSONResponse
+    
+    # デフォルトのマッピング（2桁の市町村コード）
+    default_codes = {
+        "01": "松前町",
+        "02": "福島町",
+        "03": "知内町",
+        "04": "木古内町",
+        "05": "北斗市",
+        "07": "七飯町",
+        "13": "鹿部町",
+        "15": "森町",
+        "16": "八雲町",
+        "17": "長万部町",
+        "19": "函館市"
+    }
     
     base_dir = Path(__file__).parent
     municipality_codes_path = base_dir / "data" / "administrative" / "rinsyousigen" / "municipality_codes.json"
     
-    if not municipality_codes_path.exists():
-        # ファイルがない場合はデフォルトのマッピングを返す
-        return {
-            "01": "渡島",
-            "02": "檜山",
-            "03": "後志",
-            "04": "空知",
-            "05": "上川",
-            "06": "留萌",
-            "07": "宗谷",
-            "08": "オホーツク",
-            "09": "胆振",
-            "10": "日高",
-            "11": "十勝",
-            "12": "釧路",
-            "13": "根室",
-            "14": "石狩"
-        }
+    if municipality_codes_path.exists():
+        try:
+            # マスターデータを読み込み
+            with open(municipality_codes_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if content and not content.startswith('version https://git-lfs'):
+                    municipality_codes = json.loads(content)
+                    return JSONResponse(
+                        content=municipality_codes,
+                        headers={"Access-Control-Allow-Origin": "*"}
+                    )
+        except Exception as e:
+            print(f"市町村コードマスター読み込みエラー: {e}")
     
-    # マスターデータを読み込み
-    with open(municipality_codes_path, 'r', encoding='utf-8') as f:
-        municipality_codes = json.load(f)
-    
-    return municipality_codes
+    # ファイルがない場合やエラーの場合はデフォルト値を返す
+    return JSONResponse(
+        content=default_codes,
+        headers={"Access-Control-Allow-Origin": "*"}
+    )
 
 
 @app.get("/image/{file_id}")
@@ -510,3 +495,4 @@ async def analyze_area(request: AnalysisRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
