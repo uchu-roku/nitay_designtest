@@ -68,7 +68,8 @@
   border-radius: var(--radius-sm);
 }
 
-.input--base {
+.input--base,
+.input--md {
   height: var(--input-height-base);
   padding: 0 var(--spacing-3);
   font-size: var(--font-size-base);
@@ -82,30 +83,54 @@
   border-radius: var(--radius-md);
 }
 
-/* Icon Support */
-.input--icon-left {
-  padding-left: var(--spacing-8);
+/* Icon Support - アイコンとテキストが重ならないように十分なpadding */
+/* アイコン幅(20px) + 左余白(12px) + 右余白(8px) = 40px */
+.input--icon-left.input--sm {
+  padding-left: 36px !important;
 }
 
-.input--icon-right {
-  padding-right: var(--spacing-8);
+.input--icon-left.input--base,
+.input--icon-left.input--md {
+  padding-left: 40px !important;
+}
+
+.input--icon-left.input--lg {
+  padding-left: 44px !important;
+}
+
+/* アイコン幅(20px) + 左余白(8px) + 右余白(12px) = 40px */
+.input--icon-right.input--sm {
+  padding-right: 36px !important;
+}
+
+.input--icon-right.input--base,
+.input--icon-right.input--md {
+  padding-right: 40px !important;
+}
+
+.input--icon-right.input--lg {
+  padding-right: 44px !important;
 }
 
 .input-icon {
   position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 20px;
+  height: 20px;
   color: var(--text-tertiary);
   pointer-events: none;
 }
 
 .input-icon--left {
-  left: var(--spacing-2);
+  left: 12px;
 }
 
 .input-icon--right {
-  right: var(--spacing-2);
+  right: 12px;
 }
 
 /* Messages */

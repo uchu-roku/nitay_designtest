@@ -36,6 +36,15 @@ export default function Button({
     className,
   ].filter(Boolean).join(' ');
 
+  // AppIconのサイズをマッピング（baseはサポートされていないのでmdに変換）
+  const getIconSize = (buttonSize) => {
+    if (buttonSize === 'sm') return 'sm'
+    if (buttonSize === 'lg') return 'lg'
+    return 'md' // base -> md
+  }
+
+  const iconSize = getIconSize(size)
+
   return (
     <button
       className={classes}
@@ -44,15 +53,15 @@ export default function Button({
     >
       {loading && (
         <span className="btn__spinner" aria-hidden="true">
-          <AppIcon name="refresh" size={size === 'sm' ? 'sm' : 'base'} />
+          <AppIcon name="refresh" size={iconSize} />
         </span>
       )}
       {!loading && icon && iconPosition === 'left' && (
-        <AppIcon name={icon} size={size === 'sm' ? 'sm' : 'base'} />
+        <AppIcon name={icon} size={iconSize} />
       )}
       <span className="btn__label">{children}</span>
       {!loading && icon && iconPosition === 'right' && (
-        <AppIcon name={icon} size={size === 'sm' ? 'sm' : 'base'} />
+        <AppIcon name={icon} size={iconSize} />
       )}
     </button>
   );

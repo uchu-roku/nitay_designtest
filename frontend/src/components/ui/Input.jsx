@@ -39,7 +39,7 @@ export default function Input({
       <div className="input-container">
         {icon && iconPosition === 'left' && (
           <div className="input-icon input-icon--left">
-            <AppIcon name={icon} size={size === 'sm' ? 'sm' : 'base'} />
+            <AppIcon name={icon} size={size === 'sm' ? 'sm' : 'md'} />
           </div>
         )}
         <input
@@ -49,7 +49,7 @@ export default function Input({
         />
         {icon && iconPosition === 'right' && (
           <div className="input-icon input-icon--right">
-            <AppIcon name={icon} size={size === 'sm' ? 'sm' : 'base'} />
+            <AppIcon name={icon} size={size === 'sm' ? 'sm' : 'md'} />
           </div>
         )}
       </div>

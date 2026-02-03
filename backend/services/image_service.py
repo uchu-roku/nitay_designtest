@@ -32,12 +32,12 @@ class ImageService:
                         bounds = transform_bounds(crs, 'EPSG:4326', *bounds)
                         print(f"変換後の境界: {bounds}")
                     
-                    # 境界ボックス（西, 南, 東, 北）
+                    # 境界ボックス（西, 南, 東, 北）-> (min_lon, min_lat, max_lon, max_lat)
                     bbox = {
-                        'west': bounds[0],
-                        'south': bounds[1],
-                        'east': bounds[2],
-                        'north': bounds[3]
+                        'min_lon': bounds[0],
+                        'min_lat': bounds[1],
+                        'max_lon': bounds[2],
+                        'max_lat': bounds[3]
                     }
                     
                     print(f"最終的なbbox: {bbox}")
@@ -60,34 +60,22 @@ class ImageService:
                     }
             except ImportError as e:
                 print(f"rasterioのインポートエラー: {e}")
-                # rasterioがない場合は通常の画像として処理
-                pass
+                return {
+                    'valid': False,
+                    'message': f'rasterioがインストールされていません: {str(e)}'
+                }
             except Exception as e:
                 print(f"GeoTIFF読み取りエラー: {e}")
-                # エラーの場合は通常の画像として処理
-                pass
-            
-            # 通常の画像ファイル
-            img = Image.open(file_path)
-            width, height = img.size
-            
-            warnings = ['GeoTIFF情報が読み取れません。通常の画像として処理します。']
-            if width < 500 or height < 500:
-                warnings.append('画像サイズが小さい可能性があります')
-            
-            return {
-                'valid': True,
-                'message': 'OK',
-                'info': {
-                    'width': width,
-                    'height': height,
-                    'format': img.format,
-                    'has_geotiff': False,
-                    'warnings': warnings
+                import traceback
+                traceback.print_exc()
+                return {
+                    'valid': False,
+                    'message': f'GeoTIFF読み取りエラー: {str(e)}'
                 }
-            }
         
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return {
                 'valid': False,
                 'message': f'ファイル読み込みエラー: {str(e)}'
